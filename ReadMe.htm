@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <link rel="stylesheet" href="doc_resources/pandoc.css" type="text/css" />
+</head>
+<body>
+<div id="TOC">
+<ul>
+<li><a href="#requirements">Requirements</a></li>
+<li><a href="#how-to-build">How to Build</a><ul>
+<li><a href="#how-to-build-in-linux">How to Build in Linux</a></li>
+<li><a href="#how-to-build-in-windows">How to Build in Windows</a></li>
+</ul></li>
+<li><a href="#examples">Examples</a><ul>
+<li><a href="#using-a-web-browser">Using a Web Browser</a></li>
+<li><a href="#using-httpc">Using httpc</a></li>
+</ul></li>
+<li><a href="#optional-tasks">Optional Tasks</a><ul>
+<li><a href="#browsable-directories">Browsable Directories</a></li>
+<li><a href="#multi-requests-support">Multi-Requests Support</a></li>
+<li><a href="#content-type-content-disposition-support">Content-Type &amp; Content-Disposition Support</a></li>
+</ul></li>
+<li><a href="#third-party-libraries">Third-Party Libraries</a></li>
+</ul>
+</div>
+<h1 id="requirements">Requirements</h1>
+<p>The following requirements are mandatory: * A recent C++ compiler which fully supports C++11 * <a href="https://cmake.org">CMake</a></p>
+<h1 id="how-to-build">How to Build</h1>
+<p>Note that this program depends on some libraries. <code>CMake</code> first download those libraries and then it builds the program.</p>
+<h2 id="how-to-build-in-linux">How to Build in Linux</h2>
+<p>You can use the graphical interface of CMake (<code>cmake-gui</code>) to generate a <code>makefile</code>. If you prefer command line interface, first go to the project path and then execute the following commands:</p>
+<pre><code>$ mkdir build
+$ cd build
+$ cmake ..
+$ make</code></pre>
+<p>For more information about using CMake check out this <a href="https://cmake.org/runningcmake/">link</a>.</p>
+<h2 id="how-to-build-in-windows">How to Build in Windows</h2>
+<p>You can use the graphical interface of CMake to generate a project (for example Visual Studio project). If you prefer command line interface, first go to the project path and then execute the following commands:</p>
+<pre><code>mkdir build
+cd build
+cmake ..</code></pre>
+<p>Then you can open the generated project with your favorite IDE (e.g. Visual Studio). For more information about using CMake check out this <a href="https://cmake.org/runningcmake/">link</a>.</p>
+<h1 id="examples">Examples</h1>
+<p>For a complete list of supported features run <code>./httpfs -h</code>.</p>
+<h2 id="using-a-web-browser">Using a Web Browser</h2>
+<p>First we run the server:</p>
+<pre><code>$ ./httpfs -v --level 3</code></pre>
+<p>then open <code>http://localhost:8080</code> in your favorite browser. You can see the list of files and directories and you can click on them to open a directory or file. If you go to a directory in the top of page there is a link named <code>Parent Directory</code> that you can use to return to the parent. The interface is similar to <a href="https://httpd.apache.org/">Apache Http Server</a>. You can see an example in the following image:</p>
+<div class="figure">
+<img src="doc_resources/Screenshot_20171028_153210.png" alt="httpfs in a web browser" />
+<p class="caption">httpfs in a web browser</p>
+</div>
+<h2 id="using-httpc">Using httpc</h2>
+<p>First we run the server:</p>
+<pre><code>$ ./httpfs -v --level 3</code></pre>
+<p>Then we can test get command with <code>httpc</code>:</p>
+<pre><code>$ ./httpc -v -h &quot;Accept: text/plain&quot; get &quot;http://localhost:8080&quot;
+$ ./httpc -v -h &quot;Accept: application/json&quot; get &quot;http://localhost:8080&quot;
+$ ./httpc -v -h &quot;Accept: application/xml&quot; get &quot;http://localhost:8080&quot;
+$ ./httpc -v -h &quot;Accept: text/html&quot; get &quot;http://localhost:8080&quot;
+$ ./httpc -v -h &quot;Accept: application/xhtml+xml,application/json,text/html,application/xml;q=0.9,*/*;q=0.8&quot; get &quot;http://localhost:8080&quot;</code></pre>
+<p>The priority of mime types for directory listing: 1. text/html 2. application/json 3. application/xml 4. text/plain</p>
+<p>If the client doesn’t send <code>Accept</code> header or none of the above mime is presented, the server choose HTML format for directory listing. If the GET command points to the directory the content of the file is returned. If it’s a directory the list of files and directories in it is returned. You can control the level of subdirectories with <code>--level</code> option (it only works for json and xml). The default is 0 which means The content of child directories will not be returned.</p>
+<p>Testing post command:</p>
+<pre><code>$ ./httpc -v post -d &quot;This is foo.txt content&quot; -h &quot;Content-Type: text/plain&quot;  &quot;http://localhost:8080/foo.txt&quot;
+$ ./httpc -v get  &quot;http://localhost:8080/foo.txt&quot;</code></pre>
+<h1 id="optional-tasks">Optional Tasks</h1>
+<h2 id="browsable-directories">Browsable Directories</h2>
+<p>I implemented something similar to <a href="https://httpd.apache.org/">Apache Http Server</a>. For handling whitespaces I used two functions for encoding/decoding URLs.</p>
+<h2 id="multi-requests-support">Multi-Requests Support</h2>
+<p>It’s better to not use a web browser because they cache the data. I’ve tested them using <a href="https://mpv.io/">mpv</a> video player which supports URLs. First we run the server:</p>
+<pre><code>$ ./httpfs -v --level 3 --no-cache</code></pre>
+<p>Then I try to watch a movie using two <code>mpv</code> istances simultaneously.</p>
+<pre><code>$ mpv http://localhost:8080/Star%20Wars/I%20am%20your%20father%21%20-%20Star%20Wars%20%5BThe%20Empire%20Strikes%20Back%5D%204K-GJf_tMztOv4.webm &amp;
+$ mpv http://localhost:8080/Star%20Wars/I%20am%20your%20father%21%20-%20Star%20Wars%20%5BThe%20Empire%20Strikes%20Back%5D%204K-GJf_tMztOv4.webm &amp;</code></pre>
+<p>You can check the number of sockets in Linux by the following command:</p>
+<pre><code>$ watch lsof -i4 -P -a -p $(pgrep httpfs)</code></pre>
+<h2 id="content-type-content-disposition-support">Content-Type &amp; Content-Disposition Support</h2>
+<p>I used <a href="https://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types">Appache mime.types</a> file which maps file extension to its equivalent mime type. So when user ask a file, based on its extension I extract it’s mime. You can run the server with an updated mime.types with <code>httpfs -m [path_to_mime.types]</code>. For more information run <code>httpfs -h</code>.</p>
+<p>I also implemented <code>Content-Disposition</code>. You can run the server with <code>httpfs -C video -C image</code> to put <code>Content-Disposition</code> in all header responses for all video and image files to suggest to the client they shouldn’t show them inline but as an attachment. As another example <code>httpfs -C video/mp4</code> only put that header in all video files which belong to <code>video/mp4</code> mime for example: <em>.mp4, </em>.mp4v and *.mpg4.</p>
+<h1 id="third-party-libraries">Third-Party Libraries</h1>
+<p>I’ve used the following external libraries. You don’t need to download them. It’s the job of CMake:</p>
+<ul>
+<li><a href="https://think-async.com/">Asio</a> for cross-platform socket programming</li>
+<li><a href="http://www.boost.org/">Boost C++ Libraries:</a>
+<ul>
+<li>Boost.Filesystem for facilities to manipulate files and directories, and the paths that identify them</li>
+<li>Boost Property Tree for generating XML results</li>
+<li>Boost thread for concurrent read and exclusive write</li>
+</ul></li>
+<li><a href="https://github.com/nlohmann/json">nlohmann json</a> for generating JSON results</li>
+<li><a href="https://github.com/jarro2783/cxxopts">cxxopts</a> for command line interface</li>
+<li><a href="https://github.com/corporateshark/LUrlParser">LUrlParser</a> for parsing URLs</li>
+</ul>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252"></head><body data-pinterest-extension-installed="ff1.37.9"><div id="footer">
+  Saman Saadi Alekasir (40009949)
+</div>
+
+</body></html>
+</body>
+</html>
