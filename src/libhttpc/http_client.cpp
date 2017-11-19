@@ -1,10 +1,15 @@
 #include "http_client.h"
+#include "../reliable_udp/udp_packet.h"
 #include "connection.h"
 
 #include <LUrlParser.h>
 #include <iostream>
 #include <sstream>
 #include <memory>
+
+ClientTransportProtocol client_transport_protocol = ClientTransportProtocol::UDP;
+std::string router_address = "localhost";
+unsigned short router_port = 7070;
 
 HttpMessage HttpClient::sendGetCommand(const std::string& url, const std::string& header, bool verbose)
 {
@@ -103,6 +108,14 @@ HttpMessage HttpClient::readHttpMessage(asio::ip::tcp::socket& socket, asio::str
 
 HttpMessage HttpClient::requestAndReply(const std::string& host, const std::string& port, const std::string& message)
 {
+    if (client_transport_protocol == ClientTransportProtocol::TCP)
+        return tcpRequestAndReply(host, port, message);
+    else
+        return udpRequestAndReply(host, port, message);
+}
+
+HttpMessage HttpClient::tcpRequestAndReply(const std::string& host, const std::string& port, const std::string& message)
+{
     asio::io_service io_service;
     using asio::ip::tcp;
     tcp::socket socket(io_service);
@@ -111,6 +124,40 @@ HttpMessage HttpClient::requestAndReply(const std::string& host, const std::stri
     asio::write(socket, asio::buffer(message));
     asio::streambuf buffer;
     return readHttpMessage(socket, buffer);
+}
+
+HttpMessage HttpClient::udpRequestAndReply(const std::string& host, const std::string& port, const std::string& message)
+{
+    using asio::ip::udp;
+    asio::io_service io_service;
+    udp::socket socket(io_service, udp::endpoint(udp::v4(), 0));
+    udp::resolver resolver(io_service);
+    std::ostringstream oss;
+    oss << router_port;
+    udp::endpoint router_endpoint = *resolver.resolve({udp::v4(), router_address, oss.str()});
+    udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
+    UdpPacket packet;
+    packet.setPeerIpV4(server_endpoint.address().to_string());
+    packet.peer_port = server_endpoint.port();
+    packet.packet_type = PacketType::Data;
+    packet.seq_num = 1;
+    packet.data = "GET /saman.txt HTTP/1.0\r\nHost:localhost:8080\r\n\r\n";
+    std::string udp_msg = packet.marshall();
+    socket.send_to(asio::buffer(udp_msg, udp_msg.length()), router_endpoint);
+
+    char reply_buffer[1024];
+    udp::endpoint sender_endpoint;
+    size_t reply_length = socket.receive_from(
+        asio::buffer(reply_buffer, 1024), sender_endpoint);
+    std::string reply = std::string(reply_buffer, reply_length);
+    packet.unmarshall(reply);
+    using namespace std;
+    cout << "Message Header: " << endl;
+    cout << "peer ip: " << packet.peerIpV4() << endl;
+    cout << "peer port: " << packet.peer_port << endl;
+    cout << "sequence number: " << packet.seq_num << endl;
+    cout << "payload:" << endl;
+    cout << packet.data;
 }
 
 HttpMessage HttpClient::parseHttpMessage(const std::string& message, bool read_body)

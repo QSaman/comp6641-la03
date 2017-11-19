@@ -13,6 +13,10 @@
 
 enum class CommandType {None, Get, Post, Help};
 
+extern ClientTransportProtocol client_transport_protocol;
+extern std::string router_address;
+extern unsigned short router_port;
+
 static cxxopts::Options options("httpc", "httpc is a curl-like application but supports HTTP only.");
 static bool verbose = false;
 static std::string header;
@@ -22,6 +26,7 @@ static std::string post_data;
 static std::string output_file;
 static bool redirect = false;
 static int max_redirection = 50;
+//ClientTransportProtocol client_transport_protocol = ClientTransportProtocol::UDP;
 
 [[noreturn]] void print_all_helps()
 {
@@ -145,6 +150,12 @@ void process_input_args(int argc, char* argv[])
             ("help", "Show all help menus")
             ("v,verbose", "Prints the detail of the response such as protocol, status, and headers")
             ("h,header", "Associate headers to HTTP Request with the format 'key:value'", cxxopts::value<std::vector<std::string>>(), "key:value")
+            ("t,protocol", "The underlying protocol. The default is udp",
+             cxxopts::value<std::string>(), "tcp/udp")
+            ("a,router-address", "Router address for UDP connection. The default is localhost",
+             cxxopts::value<std::string>(), "router_address")
+            ("b,router-port", "Router port for UDP connection. The default is 7070",
+             cxxopts::value<unsigned short>(), "num")
             ("F,header-file", "Associate the content of a file as headers to HTTP Request", cxxopts::value<string>(), "file")
             ("o,output-file", "Writing the body of response to file", cxxopts::value<string>(), "file")
             ("r,redirect", "Redirect to a new address when server sends a status code 3xx")
@@ -165,6 +176,30 @@ void process_input_args(int argc, char* argv[])
 
     if (options.count("help"))
         print_all_helps();
+    if (options.count("protocol"))
+    {
+        auto tmp = options["protocol"].as<std::string>();
+        if (tmp == "tcp" || tmp == "TCP")
+            client_transport_protocol = ClientTransportProtocol::TCP;
+    }
+    if (options.count("router-address"))
+    {
+        if (client_transport_protocol == ClientTransportProtocol::TCP)
+        {
+            std::cerr << "You must use router-address for UDP connection" << std::endl;
+            exit(1);
+        }
+        router_address = options["router-address"].as<std::string>();
+    }
+    if (options.count("router-port"))
+    {
+        if (client_transport_protocol == ClientTransportProtocol::TCP)
+        {
+            std::cerr << "You must use router-port for UDP connection" << std::endl;
+            exit(1);
+        }
+        router_port = options["router-port"].as<unsigned short>();
+    }
     if (options.count("redirect"))
         redirect = true;
     if (options.count("max-redirection"))
@@ -231,6 +266,11 @@ void test_post()
     HttpClient client;
     auto reply = client.sendPostCommand("http://httpbin.org/post", "{\"Assignment\": 1}", "Content-Type:application/json", true);
     std::cout << "reply: \n" << reply.body << std::endl;
+}
+
+void test_router()
+{
+
 }
 
 void print_reply(HttpMessage& reply)
@@ -314,7 +354,7 @@ void execute_user_request()
 
 int main(int argc, char* argv[])
 {
-    process_input_args(argc, argv);
+    process_input_args(argc, argv);    
     execute_user_request();
     //test_get();
     //test_post();

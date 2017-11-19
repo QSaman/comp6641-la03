@@ -1,6 +1,7 @@
 #include "http_server.h"
 #include "../libhttpc/http_client.h"
 #include "../reliable_udp/reliable_udp.h"
+#include "../reliable_udp/udp_packet.h"
 #include "filesystem.h"
 #include "request_handler.h"
 
@@ -72,10 +73,6 @@ void runHttpTcpServer(unsigned short port)
 {
     using asio::ip::tcp;
     asio::io_service io_service;
-    std::cout << "Listening on port " << port << std::endl;
-    std::cout << "root directory is: " << root_dir_path << std::endl << std::endl;
-    std::cout << "Loading MIME types..." << std::endl;
-    initExt2Mime();
     try
     {
         tcp::acceptor passive_socket(io_service, tcp::endpoint(tcp::v4(), port));
@@ -96,13 +93,44 @@ void runHttpTcpServer(unsigned short port)
     }
 }
 
-void runHttpUdpServer(unsigned short port)
+[[noreturn]] void runHttpUdpServer(unsigned short port)
 {
-    testMarshalling();
+    //testMarshalling();
+    using asio::ip::udp;
+    asio::io_service io_service;
+    udp::socket socket(io_service, udp::endpoint(udp::v4(), port));
+    while (true)
+    {
+        char data[max_udp_packet_length];
+        udp::endpoint sender_endpoint;
+        auto length = socket.receive_from(asio::buffer(data, max_udp_packet_length), sender_endpoint);
+        std::string message(data, length);
+        UdpPacket packet;
+        packet.unmarshall(message);
+        using namespace std;
+        cout << "Message Header: " << endl;
+        cout << "peer ip: " << packet.peerIpV4() << endl;
+        cout << "peer port: " << packet.peer_port << endl;
+        cout << "sequence number: " << packet.seq_num << endl;
+        cout << "payload:" << endl;
+        cout << packet.data << endl;
+        packet.data = "Hello There!";
+        std::string reply = packet.marshall();
+        socket.send_to(asio::buffer(reply, reply.length()), sender_endpoint);
+    }
 }
 
 void runHttpServer(unsigned short port)
 {
+    std::string protocol;
+    if (transport_protocol == TransportProtocol::TCP)
+        protocol = "TCP";
+    else
+        protocol = "UDP";
+    std::cout << "Listening on port " << port << " (" << protocol << ")" << std::endl;
+    std::cout << "root directory is: " << root_dir_path << std::endl << std::endl;
+    std::cout << "Loading MIME types..." << std::endl;
+    initExt2Mime();
     if (transport_protocol == TransportProtocol::TCP)
         runHttpTcpServer(port);
     else

@@ -8,6 +8,16 @@
 namespace LUrlParser{ class clParseURL; }
 using HttpHeader = std::map<std::string, std::string>;
 
+enum class ClientTransportProtocol
+{
+    TCP,
+    UDP
+};
+
+extern ClientTransportProtocol client_transport_protocol;
+extern std::string router_address;
+extern unsigned short router_port;
+
 enum class HttpMessageType
 {
     Reply,
@@ -37,5 +47,7 @@ public:
     static HttpMessage readHttpMessage(asio::ip::tcp::socket& socket, asio::streambuf& buffer);
 private:
     HttpMessage requestAndReply(const std::string& host, const std::string& port, const std::string& message);
+    HttpMessage tcpRequestAndReply(const std::string& host, const std::string& port, const std::string& message);
+    HttpMessage udpRequestAndReply(const std::string& host, const std::string& port, const std::string& message);
     void constructMessage(std::ostringstream& oss, LUrlParser::clParseURL& lurl, const std::string& header, const std::string& data);
 };
