@@ -1,5 +1,6 @@
 #include "http_server.h"
 #include "../libhttpc/http_client.h"
+#include "../reliable_udp/reliable_udp.h"
 #include "filesystem.h"
 #include "request_handler.h"
 
@@ -67,7 +68,7 @@ void handleClientHttpRequest(asio::ip::tcp::socket active_socket) noexcept
     }
 }
 
-void runUdpServer(unsigned short port)
+void runHttpTcpServer(unsigned short port)
 {
     using asio::ip::tcp;
     asio::io_service io_service;
@@ -93,5 +94,18 @@ void runUdpServer(unsigned short port)
     {
         std::cerr << "Unknown exception for passive socket" << std::endl;
     }
+}
+
+void runHttpUdpServer(unsigned short port)
+{
+    testMarshalling();
+}
+
+void runHttpServer(unsigned short port)
+{
+    if (transport_protocol == TransportProtocol::TCP)
+        runHttpTcpServer(port);
+    else
+        runHttpUdpServer(port);
 }
 

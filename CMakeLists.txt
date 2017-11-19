@@ -8,6 +8,7 @@ project(httpfs)
 set(HTTPC_LIB_NAME "http_client")
 set(HTTPFS_LIB_NAME "http_file_server")
 set(HTTPC_NAME "httpc")
+set(RELIABLE_UDP_LIB_NAME "reliable_udp")
 
 include(ucm)
 include(DefaultOptions)
@@ -44,12 +45,17 @@ target_link_libraries(${HTTPC_NAME} ${LURLPARSER_LIBRARIES} ${HTTPC_LIB_NAME})
 
 ucm_add_dirs(src/libhttpfs TO LIBHTTPFS_SRC_LIST)
 add_library(${HTTPFS_LIB_NAME} STATIC ${LIBHTTPFS_SRC_LIST})
-target_link_libraries(${HTTPFS_LIB_NAME} Boost::system Boost::filesystem nlohmann_json Boost::thread ${HTTPC_LIB_NAME})
+target_link_libraries(${HTTPFS_LIB_NAME} Boost::system Boost::filesystem nlohmann_json Boost::thread ${HTTPC_LIB_NAME} ${RELIABLE_UDP_LIB_NAME})
 
 ucm_add_dirs(src/httpfs TO HTTPFS_SRC_LIST)
 add_executable(${PROJECT_NAME} ${HTTPFS_SRC_LIST})
 add_dependencies(${PROJECT_NAME} external_cxxopts)
 target_link_libraries(${PROJECT_NAME} PUBLIC ${LURLPARSER_LIBRARIES} Boost::system Boost::filesystem nlohmann_json ${HTTPFS_LIB_NAME})
+
+ucm_add_dirs(src/reliable_udp TO LIBRELIABLE_UDP_SRC_LIST)
+add_library(${RELIABLE_UDP_LIB_NAME} STATIC ${LIBRELIABLE_UDP_SRC_LIST})
+add_dependencies(${RELIABLE_UDP_LIB_NAME} external_asio)
+target_link_libraries(${RELIABLE_UDP_LIB_NAME})
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 COMMAND "${CMAKE_COMMAND}" -E copy_directory "${PROJECT_SOURCE_DIR}/resources" "${PROJECT_BINARY_DIR}/resources")

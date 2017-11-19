@@ -17,6 +17,7 @@ extern std::string icons_dir_path;
 extern bool no_cache;
 extern int children_level;
 extern std::vector<std::string> mime_filter_list;
+extern TransportProtocol transport_protocol;
 
 std::string root_dir_path = "./resources/httpfs_root";
 std::string icons_dir_path = "./resources";
@@ -27,6 +28,7 @@ bool verbose = false;
 bool no_cache = false;
 int children_level = 0;
 static unsigned short port = 8080;
+TransportProtocol transport_protocol = TransportProtocol::UDP;
 
 [[noreturn]] void printHelp()
 {
@@ -40,6 +42,8 @@ void cli(int argc, char* argv[])
             ("v,verbose", " Prints debugging messages")
             ("p,port", " Specifies the port number that the server will listen and serve at."
                        " Default is 8080", cxxopts::value<int>(), "num")
+            ("t,protocol", "The underlying protocol. The default is udp",
+             cxxopts::value<std::string>(), "tcp/udp")
             ("d,dir", " Specifies the directory that the server will use to read/write requested"
                       " files. Default is resources/https_root in the current directory when"
                       " launching the application", cxxopts::value<std::string>(), "dir_path")
@@ -58,8 +62,15 @@ void cli(int argc, char* argv[])
              cxxopts::value<std::vector<std::string>>(), "mime_type");
     options.parse(argc, argv);
 
+
     if (options.count("help"))
         printHelp();
+    if (options.count("protocol"))
+    {
+        auto tmp = options["protocol"].as<std::string>();
+        if (tmp == "tcp" || tmp == "TCP")
+            transport_protocol = TransportProtocol::TCP;
+    }
     if (options.count("verbose"))
         verbose = true;
     if (options.count("port"))
@@ -79,20 +90,6 @@ void cli(int argc, char* argv[])
 int main(int argc, char* argv[])
 {
     cli(argc, argv);
-//    try
-//    {
-        runUdpServer(port);
-//        //std::cout << textDirList("/media/NixHddData/MyStuff/Programming/Projects/C++/Comp6461/LabAssignment02/");
-//        //std::cout << jsonDirList("/media/NixHddData/MyStuff/test/force_users/", 2);
-//        std::cout << jsonDirList("/media/NixHddData/MyStuff/test/force_users2/", 2);
-//    }
-//    catch (const boost::filesystem::filesystem_error& ex)
-//    {
-//        std::cout << ex.what() << std::endl;
-//    }
-//    catch(std::exception ex)
-//    {
-//        std::cout << ex.what() << std::endl;
-//    }
+    runHttpServer(port);
 }
  

@@ -4,5 +4,13 @@
 
 extern bool verbose;
 
-void runUdpServer(unsigned short port);
+enum class TransportProtocol
+{
+    TCP,
+    UDP
+};
+
+extern TransportProtocol transport_protocol;
+
+void runHttpServer(unsigned short port);
 std::string constructServerMessage(const std::string partial_header, const std::string body);
