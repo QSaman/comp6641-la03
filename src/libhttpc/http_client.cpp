@@ -139,7 +139,7 @@ HttpMessage HttpClient::udpRequestAndReply(const std::string& host, const std::s
     UdpPacket packet;
     packet.setPeerIpV4(server_endpoint.address().to_string());
     packet.peer_port = server_endpoint.port();
-    packet.packet_type = PacketType::Data;
+    packet.packet_type = PacketTypeMask::Data;
     packet.seq_num = 1;
     packet.data = "GET /saman.txt HTTP/1.0\r\nHost:localhost:8080\r\n\r\n";
     std::string udp_msg = packet.marshall();

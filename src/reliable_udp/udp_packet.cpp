@@ -15,6 +15,7 @@ std::string UdpPacket::marshall() const
     saman::binary_write(oss, b_peer_ipv4);
     auto b_peer_port = boost::endian::native_to_big(peer_port);
     saman::binary_write(oss, b_peer_port);
+    saman::binary_write(oss, boost::endian::native_to_big(ack_number));
     saman::binary_write(oss, data);
     return oss.str();
 }
@@ -34,6 +35,9 @@ void UdpPacket::unmarshall(const std::string& network_message)
     saman::binary_read(iss, peer_port);
     header_len += sizeof(peer_port);
     boost::endian::big_to_native_inplace(peer_port);
+    saman::binary_read(iss, ack_number);
+    header_len += sizeof(ack_number);
+    boost::endian::big_to_native_inplace(ack_number);
     unsigned int msg_len = network_message.length() - header_len;
     saman::binary_read_string(iss, data, msg_len);
 }
@@ -73,7 +77,7 @@ std::string UdpPacket::peerIpV4()
     return oss.str();
 }
 
-std::ostream&operator<<(std::ostream& out, PacketType packet_type)
-{
-    return out << std::underlying_type<PacketType>::type(packet_type);
-}
+//std::ostream&operator<<(std::ostream& out, PacketType packet_type)
+//{
+//    return out << std::underlying_type<PacketType>::type(packet_type);
+//}

@@ -55,7 +55,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${LURLPARSER_LIBRARIES} Boost::syst
 ucm_add_dirs(src/reliable_udp TO LIBRELIABLE_UDP_SRC_LIST)
 add_library(${RELIABLE_UDP_LIB_NAME} STATIC ${LIBRELIABLE_UDP_SRC_LIST})
 add_dependencies(${RELIABLE_UDP_LIB_NAME} external_asio)
-target_link_libraries(${RELIABLE_UDP_LIB_NAME})
+target_link_libraries(${RELIABLE_UDP_LIB_NAME} Threads::Threads)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 COMMAND "${CMAKE_COMMAND}" -E copy_directory "${PROJECT_SOURCE_DIR}/resources" "${PROJECT_BINARY_DIR}/resources")
