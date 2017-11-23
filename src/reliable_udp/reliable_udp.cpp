@@ -46,7 +46,7 @@ void ReliableUdp::srWrite()
 void ReliableUdp::srRead()
 {
     std::unique_ptr<char> buffer(new char[max_udp_packet_length]);
-    while (true)
+    while (accept_request)
     {
         auto length = socket.receive(asio::buffer(buffer.get(), max_udp_packet_length));
         auto message = std::string(buffer.get(), length);
@@ -97,20 +97,39 @@ void ReliableUdp::completeThreewayHandshake(UdpPacket& packet)
                 receive_queue.pop();
             break;
         }
+        else
+        {
+            receive_queue.pop();
+            lock.unlock();
+            UdpPacket packet;
+            packet.setAck();
+            packet.ack_number = peer_sequence_number;
+            packet.seq_num = sequence_number;
+            packet.data = "";
+            {
+                std::lock_guard<std::mutex> lock(send_queue_mutex);
+                send_queue.push(packet);
+            }
+        }
     }
-
 }
 
 ReliableUdp::ReliableUdp(asio::io_service& io_service) :
-    socket(udp::socket(io_service, udp::endpoint(udp::v4(), 0))), resolver(io_service),
-    accept_request{true}
+    io_service{io_service}, socket(udp::socket(io_service, udp::endpoint(udp::v4(), 0))),
+    resolver(io_service), accept_request{true}
 {
     init();
 }
 
 ReliableUdp::~ReliableUdp()
 {
-
+    {
+        std::lock_guard<std::mutex> lock(send_queue_mutex);
+        accept_request = false;
+    }
+    send_cv.notify_all();
+    socket.cancel();
+    //TODO
 }
 
 void ReliableUdp::write(std::string message)

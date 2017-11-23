@@ -37,6 +37,7 @@ private:
     std::mutex send_queue_mutex, receive_queue_mutex;
     std::condition_variable send_cv, receive_cv;
     asio::ip::udp::socket socket;
+    asio::io_service& io_service;
     asio::ip::udp::resolver resolver;
     bool accept_request;
     std::thread write_thread, read_thread;

@@ -37,6 +37,7 @@ public:
     inline bool dataPacket() {return (packet_type & PacketTypeMask::Data) != 0;}
     inline bool synAckPacket() {return (packet_type & (PacketTypeMask::Ack | PacketTypeMask::Syn)) != 0;}
     inline void resetAck() {packet_type &= ~PacketTypeMask::Ack;}
+    inline void clearPacketType() {packet_type = 0x00;}
 public:
     PacketType packet_type;
     SeqNum seq_num, ack_number;
