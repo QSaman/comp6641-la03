@@ -18,7 +18,7 @@ extern bool no_cache;
 extern int children_level;
 extern std::vector<std::string> mime_filter_list;
 extern TransportProtocol transport_protocol;
-extern int window_size;
+extern unsigned int window_size;
 
 std::string root_dir_path = "./resources/httpfs_root";
 std::string icons_dir_path = "./resources";
@@ -30,7 +30,7 @@ bool no_cache = false;
 int children_level = 0;
 static unsigned short port = 8080;
 TransportProtocol transport_protocol = TransportProtocol::UDP;
-int window_size = 1;
+unsigned int window_size = 1;
 
 [[noreturn]] void printHelp()
 {

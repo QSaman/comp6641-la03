@@ -3,6 +3,7 @@
 #include <iosfwd>
 #include <asio.hpp>
 #include <queue>
+#include <deque>
 #include <memory>
 #include <condition_variable>
 #include <mutex>
@@ -10,9 +11,9 @@
 
 #include "udp_packet.h"
 
-enum { max_udp_packet_length = 1024, max_udp_payload_length = 1009 };
+enum { max_udp_packet_length = 1024, max_udp_payload_length = 1009, timeout_limit = 500 };
 
-extern int window_size;
+extern unsigned int window_size;
 
 void testMarshalling();
 
@@ -20,25 +21,32 @@ class ReliableUdp
 {
     ReliableUdp(asio::io_service& io_service);
     ~ReliableUdp();
-    void write(std::string message);
+    void write(const std::string& message);
     std::size_t read(asio::streambuf& buffer, int length);
 private:
     void init();
-    void srWrite();
+    void srWrite(bool hand_shake = false);
     void srRead();
     void write(const UdpPacket& packet);
-    void completeThreewayHandshake(UdpPacket& packet);
+    bool completeThreewayHandshake(UdpPacket& packet);
+    void sendHandShakeResponse(UdpPacket& packet);
     friend class UdpPassiveSocket;
 private:
     asio::ip::udp::endpoint peer_endpoint;
     SeqNum sequence_number, initial_sequence_number;
     SeqNum peer_sequence_number;
-    std::queue<UdpPacket> send_queue, receive_queue;
+    std::queue<UdpPacket> receive_data_queue, receive_ack_queue;
+    std::deque<UdpPacket> send_queue;
     std::mutex send_queue_mutex, receive_queue_mutex;
+    std::string received_message;
     std::condition_variable send_cv, receive_cv;
     asio::ip::udp::socket socket;
-    asio::io_service& io_service;
+    //See examples/cpp11/futures/daytime_client.cpp:
+    //asio::io_service::work work;
+    asio::io_service& io_service;  
     asio::ip::udp::resolver resolver;
     bool accept_request;
-    std::thread write_thread, read_thread;
+    //std::thread write_thread, read_thread;
+    //std::thread background_thread;
+    char read_buffer[max_udp_packet_length];
 };

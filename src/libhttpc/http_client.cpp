@@ -142,22 +142,22 @@ HttpMessage HttpClient::udpRequestAndReply(const std::string& host, const std::s
     packet.packet_type = PacketTypeMask::Data;
     packet.seq_num = 1;
     packet.data = "GET /saman.txt HTTP/1.0\r\nHost:localhost:8080\r\n\r\n";
-    std::string udp_msg = packet.marshall();
-    socket.send_to(asio::buffer(udp_msg, udp_msg.length()), router_endpoint);
+//    std::string udp_msg = packet.marshall();
+//    socket.send_to(asio::buffer(udp_msg, udp_msg.length()), router_endpoint);
 
-    char reply_buffer[1024];
-    udp::endpoint sender_endpoint;
-    size_t reply_length = socket.receive_from(
-        asio::buffer(reply_buffer, 1024), sender_endpoint);
-    std::string reply = std::string(reply_buffer, reply_length);
-    packet.unmarshall(reply);
-    using namespace std;
-    cout << "Message Header: " << endl;
-    cout << "peer ip: " << packet.peerIpV4() << endl;
-    cout << "peer port: " << packet.peer_port << endl;
-    cout << "sequence number: " << packet.seq_num << endl;
-    cout << "payload:" << endl;
-    cout << packet.data;
+//    char reply_buffer[1024];
+//    udp::endpoint sender_endpoint;
+//    size_t reply_length = socket.receive_from(
+//        asio::buffer(reply_buffer, 1024), sender_endpoint);
+//    std::string reply = std::string(reply_buffer, reply_length);
+//    packet.unmarshall(reply);
+//    using namespace std;
+//    cout << "Message Header: " << endl;
+//    cout << "peer ip: " << packet.peerIpV4() << endl;
+//    cout << "peer port: " << packet.peer_port << endl;
+//    cout << "sequence number: " << packet.seq_num << endl;
+//    cout << "payload:" << endl;
+//    cout << packet.data;
 }
 
 HttpMessage HttpClient::parseHttpMessage(const std::string& message, bool read_body)

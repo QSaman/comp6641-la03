@@ -1,11 +1,10 @@
 #include "udp_packet.h"
 #include "binary_stream.h"
 
-#include <sstream>
 #include <iostream>
 #include <boost/endian/conversion.hpp>
 
-std::string UdpPacket::marshall() const
+void UdpPacket::marshall()
 {
     std::ostringstream oss;
     saman::binary_write(oss, packet_type);
@@ -17,10 +16,12 @@ std::string UdpPacket::marshall() const
     saman::binary_write(oss, b_peer_port);
     saman::binary_write(oss, boost::endian::native_to_big(ack_number));
     saman::binary_write(oss, data);
-    return oss.str();
+
+    data.clear();
+    marshalled_message = oss.str();
 }
 
-void UdpPacket::unmarshall(const std::string& network_message)
+void UdpPacket::unmarshall(const std::string& network_message, bool ignore_data)
 {
     unsigned int header_len = 0;
     std::istringstream iss(network_message);
@@ -38,8 +39,11 @@ void UdpPacket::unmarshall(const std::string& network_message)
     saman::binary_read(iss, ack_number);
     header_len += sizeof(ack_number);
     boost::endian::big_to_native_inplace(ack_number);
-    unsigned int msg_len = network_message.length() - header_len;
-    saman::binary_read_string(iss, data, msg_len);
+    if (!ignore_data)
+    {
+        unsigned int msg_len = network_message.length() - header_len;
+        saman::binary_read_string(iss, data, msg_len);
+    }
 }
 
 void UdpPacket::setPeerIpV4(const std::string& ipv4_address)

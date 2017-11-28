@@ -3,6 +3,7 @@
 #include <iosfwd>
 #include <string>
 #include <cstdint>
+#include <sstream>
 
 using SeqNum = std::uint32_t;
 using Ipv4 = std::uint32_t;
@@ -25,8 +26,8 @@ enum  PacketTypeMask
 class UdpPacket
 {
 public:
-    std::string marshall() const;
-    void unmarshall(const std::string& network_message);
+    void marshall();
+    void unmarshall(const std::string& network_message, bool ignore_data = false);
     void setPeerIpV4(const std::string& ipv4_address);
     std::string peerIpV4();
     inline void setSynAck() {packet_type |= (PacketTypeMask::Ack | PacketTypeMask::Syn);}
@@ -37,6 +38,7 @@ public:
     inline bool dataPacket() {return (packet_type & PacketTypeMask::Data) != 0;}
     inline bool synAckPacket() {return (packet_type & (PacketTypeMask::Ack | PacketTypeMask::Syn)) != 0;}
     inline void resetAck() {packet_type &= ~PacketTypeMask::Ack;}
+    inline void resetData() {packet_type &= ~PacketTypeMask::Data;}
     inline void clearPacketType() {packet_type = 0x00;}
 public:
     PacketType packet_type;
@@ -44,4 +46,7 @@ public:
     Ipv4 peer_ipv4;
     PortNo peer_port;
     std::string data;
+public:
+    //The following fileds are not part of marshalling and unmarshalling
+    std::string marshalled_message;
 };

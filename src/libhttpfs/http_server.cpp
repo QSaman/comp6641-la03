@@ -115,8 +115,8 @@ void runHttpTcpServer(unsigned short port)
         cout << "payload:" << endl;
         cout << packet.data << endl;
         packet.data = "Hello There!";
-        std::string reply = packet.marshall();
-        socket.send_to(asio::buffer(reply, reply.length()), sender_endpoint);
+//        std::string reply = packet.marshall();
+//        socket.send_to(asio::buffer(reply, reply.length()), sender_endpoint);
     }
 }
 
