@@ -31,12 +31,14 @@ using asio::ip::udp;
 //    cout << packet2.seq_num << ' ' << packet2.peerIpV4() << ' ' << packet2.peer_port << endl;
 //}
 
-void ReliableUdp::srWrite(bool hand_shake)
+void ReliableUdp::srWrite(HandshakeStatus handshake_status)
 {
 //    std::unique_lock<std::mutex> lock(send_queue_mutex);
 //    send_cv.wait(lock, [this]{return !send_queue.empty() || !accept_request;});
 //    if (!accept_request)
 //        break;
+    //next: current unsent packet index
+    //send_base: the least-value index of unack packet
     unsigned int send_base = 0, next = 0;
     std::unique_ptr<bool> timeout_list(new bool[send_queue.size()]);
     std::vector<bool> ack_list(send_queue.size(), false);
@@ -70,12 +72,12 @@ void ReliableUdp::srWrite(bool hand_shake)
         {
             auto& packet = receive_ack_queue.front();
             if (packet.ack_number < send_queue[send_base].seq_num ||
-                packet.ack_number >= send_queue[next].seq_num)
+                packet.ack_number > send_queue[next].seq_num)
             {
                 receive_ack_queue.pop();    //discard packet
                 continue;
             }
-            if (hand_shake && packet.seq_num != read_seq_num)
+            if (handshake_status == HandshakeStatus::Server && packet.seq_num != read_seq_num)
             {
                 receive_ack_queue.pop();    //discard packet
                 std::cerr << "Invalid sequene number in handshake! I ignore it." << std::endl;
@@ -110,21 +112,37 @@ void ReliableUdp::srWrite(bool hand_shake)
     send_queue.clear();
 }
 
-std::size_t ReliableUdp::read(char* buffer, unsigned int length)
+std::size_t ReliableUdp::read(std::string& buffer, unsigned int length)
 {
+    buffer.clear();
     const unsigned packet_num = length / max_udp_payload_length +
             (length % max_udp_payload_length ? 1 : 0);
 
     return srRead(buffer, packet_num);
 }
 
-std::size_t ReliableUdp::srRead(char* buffer, unsigned int packet_num)
+std::size_t ReliableUdp::read_untill(std::string& buffer, std::string pattern)
+{
+    buffer.clear();
+    std::size_t ret;
+    while (true)
+    {
+        std::string message;
+        srRead(message, 1);
+        buffer += message;
+        ret = message.find(pattern);
+        if (ret != message.npos)
+            break;
+    }
+    return ret;
+}
+
+std::size_t ReliableUdp::srRead(std::string& buffer, unsigned int packet_num)
 {
     unsigned read_base = 0;
     std::deque<UdpPacket> window;
     window.resize(window_size);
     auto read_seq_num_orig = read_seq_num;
-    std::string message;
 
     while (read_base < packet_num)
     {
@@ -148,7 +166,7 @@ std::size_t ReliableUdp::srRead(char* buffer, unsigned int packet_num)
         unsigned ordered_cnt;
         for (ordered_cnt = 0; ordered_cnt < window.size() && window[ordered_cnt].valid; ++ordered_cnt)
         {
-            message += window[ordered_cnt].data;
+            buffer += window[ordered_cnt].data;
             ++read_base;
             ++read_seq_num;
         }
@@ -157,8 +175,7 @@ std::size_t ReliableUdp::srRead(char* buffer, unsigned int packet_num)
         if (ordered_cnt > 0)
             window.resize(window_size);
     }
-    std::copy(message.begin(), message.end(), buffer);
-    return message.length();
+    return buffer.length();
 }
 
 void ReliableUdp::read()
@@ -177,14 +194,14 @@ void ReliableUdp::read()
         //std::lock_guard<std::mutex> lock(receive_queue_mutex);
         UdpPacket packet_with_data;
         packet_with_data.unmarshall(message);
-        if (packet_with_data.synPacket())
-            return; //discard message
+        if (packet_with_data.peerIpV4() != peer_endpoint.address().to_string() &&
+            packet_with_data.peer_port != peer_endpoint.port())
+            return;
         UdpPacket packet_header;
         packet_header.unmarshall(message, true);
         packet_header.resetData();
         if (packet_with_data.dataPacket())
         {
-            //TODO
             if (packet_with_data.seq_num < read_seq_num)    //Sender didn't receive our ack
             {
                 std::thread thread([this](unsigned seq_num, unsigned ack_num)
@@ -200,6 +217,19 @@ void ReliableUdp::read()
             }
             else
                 receive_data_queue.push(packet_with_data);
+        }
+        if (packet_header.synAckPacket())   //Replying the third part of threeway handshake
+        {
+            if (handshake_status != HandshakeStatus::Client || packet_header.ack_number != init_write_seq_num)
+                return;
+            read_seq_num = packet_header.seq_num;
+            packet_header.resetSyn();
+            UdpPacket ack_packet;
+            ack_packet.setAck();
+            ack_packet.seq_num = init_write_seq_num;
+            ack_packet.ack_number = read_seq_num;
+            write(ack_packet);
+            io_service.run_one();
         }
         if (packet_header.ackPacket())
             receive_ack_queue.push(packet_header);
@@ -220,13 +250,32 @@ void ReliableUdp::write(UdpPacket& packet)
 
 }
 
-bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet)
+void ReliableUdp::connect(std::string host, PortNo port, const udp::endpoint& router_endpoint)
+{
+    std::ostringstream oss;
+    oss << port;
+    peer_endpoint = *resolver.resolve({udp::v4(), host, oss.str()});
+    this->router_endpoint = router_endpoint;
+    socket.connect(router_endpoint);
+    UdpPacket packet;
+    packet.setSyn();
+    packet.ack_number = 0;
+    packet.seq_num = init_write_seq_num;
+    packet.data = "";
+    send_queue.push_back(packet);
+    handshake_status = HandshakeStatus::Client;
+    srWrite(HandshakeStatus::Client);
+    connection_status = ConnectionStatus::Connected;
+}
+
+bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet, const udp::endpoint& router_endpoint)
 {
     read_seq_num = packet.seq_num;
     std::ostringstream oss;
     oss << packet.peer_port;
     peer_endpoint = *resolver.resolve({udp::v4(), packet.peerIpV4(), oss.str()});
-    socket.connect(peer_endpoint);
+    this->router_endpoint = router_endpoint;
+    socket.connect(this->router_endpoint);
 
     packet.ack_number = read_seq_num;
     packet.seq_num = init_write_seq_num;
@@ -235,7 +284,9 @@ bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet)
     packet.setSynAck();
     packet.data = "";
     send_queue.push_back(packet);
-    srWrite(true);
+    handshake_status = HandshakeStatus::Server;
+    srWrite(HandshakeStatus::Server);
+    connection_status = ConnectionStatus::Connected;
     ++write_seq_num;
 //    while (true)
 //    {
@@ -271,7 +322,8 @@ bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet)
 
 ReliableUdp::ReliableUdp(asio::io_service& io_service) :
     socket(udp::socket(io_service, udp::endpoint(udp::v4(), 0))), /*work(io_service),*/
-    io_service{io_service}, resolver(io_service), accept_request{true}
+    io_service{io_service}, resolver(io_service), accept_request{true},
+    handshake_status{HandshakeStatus::Unknown}, connection_status{ConnectionStatus::Disconnect}
 {
     init();
 }

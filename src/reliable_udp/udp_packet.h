@@ -13,8 +13,8 @@ using PacketType = std::uint8_t;
 enum  PacketTypeMask
 {
     Syn = 0x01,
-    Fin = 0x02,
-    Ack = 0x04,
+    Ack = 0x02,
+    Fin = 0x04,
     Rst = 0x08,
     Data = 0x10
 };
@@ -37,9 +37,10 @@ public:
     inline bool synPacket() {return (packet_type & PacketTypeMask::Syn) != 0;}
     inline bool ackPacket() {return (packet_type & PacketTypeMask::Ack) != 0;}
     inline bool dataPacket() {return (packet_type & PacketTypeMask::Data) != 0;}
-    inline bool synAckPacket() {return (packet_type & (PacketTypeMask::Ack | PacketTypeMask::Syn)) != 0;}
+    inline bool synAckPacket() {return synPacket() && ackPacket();}
     inline void resetAck() {packet_type &= ~PacketTypeMask::Ack;}
     inline void resetData() {packet_type &= ~PacketTypeMask::Data;}
+    inline void resetSyn() {packet_type &= ~PacketTypeMask::Syn;}
     inline void clearPacketType() {packet_type = 0x00;}
 public:
     PacketType packet_type;

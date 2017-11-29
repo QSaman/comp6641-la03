@@ -22,18 +22,35 @@ class ReliableUdp
     ReliableUdp(asio::io_service& io_service);
     ~ReliableUdp();
     void write(const std::string& message);
-    std::size_t read(char* buffer, unsigned int length);
+    std::size_t read(std::string& buffer, unsigned int length);
+    std::size_t read_untill(std::string& buffer, std::string pattern);
+    void connect(std::string host, PortNo port, const asio::ip::udp::endpoint& router_endpoint);
+private:
+    enum class ConnectionStatus
+    {
+        Disconnect,
+        Connected
+    };
+
+    enum class HandshakeStatus
+    {
+        Unknown,
+        Server,
+        Client
+    };
 private:
     void init();
-    void srWrite(bool hand_shake = false);
-    std::size_t srRead(char* buffer, unsigned int packet_num);
+    void srWrite(HandshakeStatus handshake_status = HandshakeStatus::Unknown);
+    std::size_t srRead(std::string& buffer, unsigned int packet_num);
     void read();
     //The following method should be thread-safe
     void write(UdpPacket& packet);
-    bool completeThreewayHandshake(UdpPacket& packet);
+    bool completeThreewayHandshake(UdpPacket& packet, const asio::ip::udp::endpoint& router_endpoint);
     friend class UdpPassiveSocket;
 private:
-    asio::ip::udp::endpoint peer_endpoint;
+    HandshakeStatus handshake_status;
+    ConnectionStatus connection_status;
+    asio::ip::udp::endpoint peer_endpoint, router_endpoint;
     SeqNum write_seq_num, init_write_seq_num;
     SeqNum read_seq_num;
     std::queue<UdpPacket> receive_ack_queue, receive_data_queue;

@@ -27,7 +27,7 @@ void UdpPassiveSocket::accept(ReliableUdp& reliable_udp)
         packet.unmarshall(message);
         if (!packet.synPacket())
             continue;
-        if (reliable_udp.completeThreewayHandshake(packet))
+        if (reliable_udp.completeThreewayHandshake(packet, sender_endpoint))
             break;
     }
 }
