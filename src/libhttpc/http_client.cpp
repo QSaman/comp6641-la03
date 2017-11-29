@@ -1,5 +1,6 @@
 #include "http_client.h"
 #include "../reliable_udp/udp_packet.h"
+#include "../reliable_udp/reliable_udp.h"
 #include "connection.h"
 
 #include <LUrlParser.h>
@@ -135,13 +136,17 @@ HttpMessage HttpClient::udpRequestAndReply(const std::string& host, const std::s
     std::ostringstream oss;
     oss << router_port;
     udp::endpoint router_endpoint = *resolver.resolve({udp::v4(), router_address, oss.str()});
-    udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
-    UdpPacket packet;
-    packet.setPeerIpV4(server_endpoint.address().to_string());
-    packet.peer_port = server_endpoint.port();
-    packet.packet_type = PacketTypeMask::Data;
-    packet.seq_num = 1;
-    packet.data = "GET /saman.txt HTTP/1.0\r\nHost:localhost:8080\r\n\r\n";
+    //udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
+
+    ReliableUdp reliable_udp(io_service);
+    reliable_udp.connect(host, port, router_endpoint);
+    reliable_udp.write(message);
+//    UdpPacket packet;
+//    packet.setPeerIpV4(server_endpoint.address().to_string());
+//    packet.peer_port = server_endpoint.port();
+//    packet.packet_type = PacketTypeMask::Data;
+//    packet.seq_num = 1;
+//    packet.data = "GET /saman.txt HTTP/1.0\r\nHost:localhost:8080\r\n\r\n";
 //    std::string udp_msg = packet.marshall();
 //    socket.send_to(asio::buffer(udp_msg, udp_msg.length()), router_endpoint);
 

@@ -30,7 +30,6 @@ bool no_cache = false;
 int children_level = 0;
 static unsigned short port = 8080;
 TransportProtocol transport_protocol = TransportProtocol::UDP;
-unsigned int window_size = 1;
 
 [[noreturn]] void printHelp()
 {

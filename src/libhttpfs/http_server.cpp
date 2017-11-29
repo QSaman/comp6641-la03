@@ -2,6 +2,7 @@
 #include "../libhttpc/http_client.h"
 #include "../reliable_udp/reliable_udp.h"
 #include "../reliable_udp/udp_packet.h"
+#include "../reliable_udp/udp_accpter.h"
 #include "filesystem.h"
 #include "request_handler.h"
 
@@ -53,6 +54,10 @@ void readAndWrite(asio::ip::tcp::socket& active_socket)
     }
 }
 
+void handleUdpClientHttpRequest(ReliableUdp active_socket) noexcept
+{
+}
+
 void handleClientHttpRequest(asio::ip::tcp::socket active_socket) noexcept
 {
     try
@@ -93,30 +98,30 @@ void runHttpTcpServer(unsigned short port)
     }
 }
 
-[[noreturn]] void runHttpUdpServer(unsigned short port)
+void runUdpHttpServer(unsigned short port)
 {
-    //testMarshalling();
     using asio::ip::udp;
     asio::io_service io_service;
-    udp::socket socket(io_service, udp::endpoint(udp::v4(), port));
-    while (true)
+
+    UdpPassiveSocket passive_socket(io_service, port);
+    try
     {
-        char data[max_udp_packet_length];
-        udp::endpoint sender_endpoint;
-        auto length = socket.receive_from(asio::buffer(data, max_udp_packet_length), sender_endpoint);
-        std::string message(data, length);
-        UdpPacket packet;
-        packet.unmarshall(message);
-        using namespace std;
-        cout << "Message Header: " << endl;
-        cout << "peer ip: " << packet.peerIpV4() << endl;
-        cout << "peer port: " << packet.peer_port << endl;
-        cout << "sequence number: " << packet.seq_num << endl;
-        cout << "payload:" << endl;
-        cout << packet.data << endl;
-        packet.data = "Hello There!";
-//        std::string reply = packet.marshall();
-//        socket.send_to(asio::buffer(reply, reply.length()), sender_endpoint);
+        while (true)
+        {
+            ReliableUdp reliable_udp(io_service);
+            std::cout << "Before accepting..." << std::endl;
+            passive_socket.accept(reliable_udp);
+            std::cout << "After accepting..." << std::endl;
+            //std::thread(handleUdpClientHttpRequest, std::move(reliable_udp)).detach();
+        }
+    }
+    catch(const std::system_error& ex)
+    {
+        std::cerr << ex.what() << std::endl;
+    }
+    catch(...)
+    {
+        std::cerr << "Unknown exception for passive socket" << std::endl;
     }
 }
 
@@ -134,6 +139,6 @@ void runHttpServer(unsigned short port)
     if (transport_protocol == TransportProtocol::TCP)
         runHttpTcpServer(port);
     else
-        runHttpUdpServer(port);
+        runUdpHttpServer(port);
 }
 

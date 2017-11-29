@@ -4,6 +4,11 @@
 #include <iostream>
 #include <boost/endian/conversion.hpp>
 
+UdpPacket::UdpPacket() : packet_type{0x00}, seq_num{0}, ack_number{0},
+    peer_ipv4{0}, peer_port(0), valid{false}
+{
+}
+
 void UdpPacket::marshall()
 {
     std::ostringstream oss;
@@ -85,3 +90,10 @@ std::string UdpPacket::peerIpV4()
 //{
 //    return out << std::underlying_type<PacketType>::type(packet_type);
 //}
+
+std::ostream&operator<<(std::ostream& out, const UdpPacket& packet)
+{
+    out << "packet.packet_type: " << packet.packet_type << std::endl;
+    out << "packet.packet_type: " << packet.seq_num << std::endl;
+    return out;
+}

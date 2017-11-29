@@ -1,6 +1,8 @@
 #include "udp_accpter.h"
 #include <string>
 
+#include <iostream>
+
 //void UdpActiveSocket::read(std::string& message)
 //{
 //    std::unique_ptr<char> buffer(new char[packet_length]);
@@ -27,8 +29,10 @@ void UdpPassiveSocket::accept(ReliableUdp& reliable_udp)
         packet.unmarshall(message);
         if (!packet.synPacket())
             continue;
+        std::cout << "Before threeway handshaking on the server" << std::endl;
         if (reliable_udp.completeThreewayHandshake(packet, sender_endpoint))
             break;
     }
+    std::cout << "After threeway handshaking on the server" << std::endl;
 }
 

@@ -19,12 +19,13 @@ void testMarshalling();
 
 class ReliableUdp
 {
-    ReliableUdp(asio::io_service& io_service);
+public:
+    explicit ReliableUdp(asio::io_service& io_service);
     ~ReliableUdp();
     void write(const std::string& message);
     std::size_t read(std::string& buffer, unsigned int length);
     std::size_t read_untill(std::string& buffer, std::string pattern);
-    void connect(std::string host, PortNo port, const asio::ip::udp::endpoint& router_endpoint);
+    void connect(const std::string& host, const std::string& port, const asio::ip::udp::endpoint& router_endpoint);
 private:
     enum class ConnectionStatus
     {

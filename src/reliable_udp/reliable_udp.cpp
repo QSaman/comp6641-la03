@@ -9,6 +9,10 @@
 
 using asio::ip::udp;
 
+#define print(x) #x << ": " << x
+
+unsigned int window_size = 1;
+
 //void testMarshalling()
 //{
 //    UdpPacket packet;
@@ -64,37 +68,49 @@ void ReliableUdp::srWrite(HandshakeStatus handshake_status)
 
         for (unsigned i = 0; i < io_opt_cnt; ++i)
         {
-            auto res = io_service.run_one();
-            std::cout << "io_service.run_one: " << res << std::endl;
+            /*auto res = */io_service.run_one();
+            //std::cout << "io_service.run_one: " << res << std::endl;
         }
-        io_opt_cnt = 0;
+        io_opt_cnt = 0;        
         while (!receive_ack_queue.empty())  //Handle received ack packets
         {
+            std::cout << "sr write: dequeue a packet from queue" << std::endl;
             auto& packet = receive_ack_queue.front();
             if (packet.ack_number < send_queue[send_base].seq_num ||
-                packet.ack_number > send_queue[next].seq_num)
+                (next < send_queue.size() && packet.ack_number > send_queue[next].seq_num))
             {
+                //std::cout << "Revan: First continue" << std::endl;
+                std::cout <<"Revan: " << print(packet.ack_number) << std::endl;
+                std::cout <<"Revan: " << print(send_queue[send_base].seq_num) << std::endl;
+                std::cout <<"Revan: " << print(send_queue[next].seq_num) << std::endl;
+                std::cout << "sr write: invalid ack number. I drop the packet" << std::endl;
                 receive_ack_queue.pop();    //discard packet
                 continue;
             }
             if (handshake_status == HandshakeStatus::Server && packet.seq_num != read_seq_num)
             {
+                //std::cout << "Revan: Second continue" << std::endl;
                 receive_ack_queue.pop();    //discard packet
-                std::cerr << "Invalid sequene number in handshake! I ignore it." << std::endl;
+                std::cout << "Revan: " << print(packet.seq_num) << std::endl;
+                std::cout << "Revan: " << print(read_seq_num) << std::endl;
+                std::cerr << "Invalid sequene number in handshake (server)! I ignore it." << std::endl;
                 continue;
             }
+            //std::cout << "Revan: No Continue" << std::endl;
             auto index = packet.ack_number - send_queue[0].seq_num;
+            std::cout << "sr write: receive ack for packet " << index << std::endl;
             ack_list[index] = true;
             timers[index].cancel();
             timeout_list.get()[index] = false;
             receive_ack_queue.pop();
-        }
+        }        
 
         for (auto i = send_base; i < next; ++i) //Handle timeout packets
         {
             auto& timeout = timeout_list.get()[i];
-            if (!timeout)
+            if (!timeout)                
                 continue;
+            //std::cout << "Revan: timeout!" << std::endl;
             timeout = false;
             timers[i] = asio::steady_timer(socket.get_io_service());
             auto& timer = timers[i];
@@ -105,9 +121,9 @@ void ReliableUdp::srWrite(HandshakeStatus handshake_status)
             read();
             io_opt_cnt += 2;
         }
-
-        for (auto i = send_base; i < next && ack_list[i]; ++i)
-            ++send_base;
+        for (; send_base <= next && ack_list[send_base]; ++send_base);
+        //std::cout << "Revan: " << print(send_base) << std::endl;
+        //std::cout << "Revan: " << print(next) << std::endl;
     }
     send_queue.clear();
 }
@@ -161,6 +177,8 @@ std::size_t ReliableUdp::srRead(std::string& buffer, unsigned int packet_num)
         ack_packet.setAck();
         ack_packet.ack_number = packet.seq_num;
         ack_packet.seq_num = write_seq_num;
+        ack_packet.setPeerIpV4(peer_endpoint.address().to_string());
+        ack_packet.peer_port = peer_endpoint.port();
         write(ack_packet);
         io_service.run_one();
         unsigned ordered_cnt;
@@ -189,50 +207,79 @@ void ReliableUdp::read()
             return;
         }
         if (bytes_transferred == 0)
+        {
+            std::cout << "0 bytes received!" << std::endl;
             return;
+        }
+        //std::cout << "Revan: received a message" << std::endl;
         std::string message = std::string(read_buffer, bytes_transferred);
         //std::lock_guard<std::mutex> lock(receive_queue_mutex);
         UdpPacket packet_with_data;
         packet_with_data.unmarshall(message);
-        if (packet_with_data.peerIpV4() != peer_endpoint.address().to_string() &&
-            packet_with_data.peer_port != peer_endpoint.port())
-            return;
+//        if (packet_with_data.peerIpV4() != peer_endpoint.address().to_string() &&
+//            packet_with_data.peer_port != peer_endpoint.port())
+//            return;
         UdpPacket packet_header;
         packet_header.unmarshall(message, true);
         packet_header.resetData();
+       // std::cout << "Revan: " << print(packet_with_data.packet_type) << std::endl;
+        int saman = packet_with_data.packet_type;
+        //std::cout << "Revan: " << print(saman) << std::endl;
         if (packet_with_data.dataPacket())
         {
             if (packet_with_data.seq_num < read_seq_num)    //Sender didn't receive our ack
             {
+                std::cout << "Sender did not receive our ack packet. I'm trying to resend" << std::endl;
                 std::thread thread([this](unsigned seq_num, unsigned ack_num)
                 {
                     UdpPacket ack_packet;
                     ack_packet.setAck();
                     ack_packet.ack_number = ack_num;
                     ack_packet.seq_num = seq_num;
+                    ack_packet.setPeerIpV4(peer_endpoint.address().to_string());
+                    ack_packet.peer_port = peer_endpoint.port();
                     write(ack_packet);
                     io_service.run_one();
                 }, write_seq_num, packet_with_data.seq_num);
                 thread.detach();
             }
             else
+            {
+                std::cout << "push a data packet into queue" << std::endl;
                 receive_data_queue.push(packet_with_data);
+            }
         }
+        //std::cout << "Revan: " << print(packet_with_data.synAckPacket()) << std::endl;
         if (packet_header.synAckPacket())   //Replying the third part of threeway handshake
         {
             if (handshake_status != HandshakeStatus::Client || packet_header.ack_number != init_write_seq_num)
+            {
+                std::cout << "Server sent invalid handshake" << std::endl;
+                std::cout << "Revan: " << print(packet_header.ack_number) << std::endl;
+                std::cout << "Revan: " << print(init_write_seq_num) << std::endl;
                 return;
+            }
+            std::cout << "Received SYNACK packet. I'm trying to send an ack." << std::endl;
             read_seq_num = packet_header.seq_num;
             packet_header.resetSyn();
             UdpPacket ack_packet;
+            std::ostringstream oss;
+            oss << packet_header.peer_port;
+            peer_endpoint = *resolver.resolve({udp::v4(), packet_header.peerIpV4(), oss.str()});
             ack_packet.setAck();
-            ack_packet.seq_num = init_write_seq_num;
-            ack_packet.ack_number = read_seq_num;
+            ack_packet.seq_num = init_write_seq_num + 1;
+            ack_packet.ack_number = packet_header.seq_num;
+            ack_packet.setPeerIpV4(peer_endpoint.address().to_string());
+            ack_packet.peer_port = peer_endpoint.port();
             write(ack_packet);
             io_service.run_one();
-        }
+        }        
+        //std::cout << "Revan: " << print(packet_header.ackPacket()) << std::endl;
         if (packet_header.ackPacket())
+        {
+            std::cout << "Pushing an ack packet into queue" << std::endl;
             receive_ack_queue.push(packet_header);
+        }
         //receive_cv.notify_all();
     });
 }
@@ -250,21 +297,22 @@ void ReliableUdp::write(UdpPacket& packet)
 
 }
 
-void ReliableUdp::connect(std::string host, PortNo port, const udp::endpoint& router_endpoint)
+void ReliableUdp::connect(const std::string& host, const std::string& port, const udp::endpoint& router_endpoint)
 {
-    std::ostringstream oss;
-    oss << port;
-    peer_endpoint = *resolver.resolve({udp::v4(), host, oss.str()});
+    peer_endpoint = *resolver.resolve({udp::v4(), host, port});
     this->router_endpoint = router_endpoint;
     socket.connect(router_endpoint);
     UdpPacket packet;
     packet.setSyn();
+    packet.setPeerIpV4(peer_endpoint.address().to_string());
+    packet.peer_port = peer_endpoint.port();
     packet.ack_number = 0;
     packet.seq_num = init_write_seq_num;
     packet.data = "";
     send_queue.push_back(packet);
     handshake_status = HandshakeStatus::Client;
     srWrite(HandshakeStatus::Client);
+    ++write_seq_num;
     connection_status = ConnectionStatus::Connected;
 }
 
@@ -283,6 +331,8 @@ bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet, const udp::endpoi
     packet.clearPacketType();
     packet.setSynAck();
     packet.data = "";
+    packet.setPeerIpV4(peer_endpoint.address().to_string());
+    packet.peer_port = peer_endpoint.port();
     send_queue.push_back(packet);
     handshake_status = HandshakeStatus::Server;
     srWrite(HandshakeStatus::Server);
