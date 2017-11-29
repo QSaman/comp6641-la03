@@ -34,8 +34,8 @@ private:
     friend class UdpPassiveSocket;
 private:
     asio::ip::udp::endpoint peer_endpoint;
-    SeqNum sequence_number, initial_sequence_number;
-    SeqNum peer_sequence_number;
+    SeqNum write_seq_num, init_write_seq_num;
+    SeqNum read_seq_num;
     std::queue<UdpPacket> receive_ack_queue, receive_data_queue;
     std::deque<UdpPacket> send_queue;
     std::mutex send_queue_mutex, receive_queue_mutex;
