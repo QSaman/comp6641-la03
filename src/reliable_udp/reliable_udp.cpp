@@ -56,7 +56,7 @@ void ReliableUdp::srWrite(bool hand_shake)
             write(packet);
             timer.async_wait([&timeout](const asio::error_code& error)
             { if (error != asio::error::operation_aborted) timeout = true; });
-            srRead();
+            read();
             io_opt_cnt += 2;   // wait for 1 write and 1 (read or timeout)
         }
 
@@ -99,17 +99,70 @@ void ReliableUdp::srWrite(bool hand_shake)
             write(send_queue[i]);
             timer.async_wait([&timeout](const asio::error_code& error)
             { if (error != asio::error::operation_aborted) timeout = true; });
-            srRead();
+            read();
             io_opt_cnt += 2;
         }
 
         for (auto i = send_base; i < next && ack_list[i]; ++i)
             ++send_base;
     }
-
+    send_queue.clear();
 }
 
-void ReliableUdp::srRead()
+std::size_t ReliableUdp::read(char* buffer, unsigned int length)
+{
+    const unsigned packet_num = length / max_udp_payload_length +
+            (length % max_udp_payload_length ? 1 : 0);
+
+    //unsigned int io_opt_cnt = 0;
+
+    return srRead(buffer, packet_num);
+}
+
+std::size_t ReliableUdp::srRead(char* buffer, unsigned int packet_num)
+{
+    unsigned read_base = 0;
+    std::deque<UdpPacket> window;
+    window.resize(window_size);
+    auto init_sn = peer_sequence_number;
+    std::string message;
+
+    while (read_base < packet_num)
+    {
+        while (receive_data_queue.empty())
+        {
+            read();
+            io_service.run_one();
+        }
+        auto packet = receive_data_queue.front();
+        receive_data_queue.pop();
+        unsigned index = packet.seq_num - peer_sequence_number;
+        if (index >= window_size || (packet.seq_num - init_sn) > packet_num)
+            continue;
+        window[index] = std::move(packet);
+        UdpPacket ack_packet;
+        ack_packet.setAck();
+        ack_packet.ack_number = packet.seq_num;
+        ack_packet.seq_num = sequence_number;
+        write(ack_packet);
+        io_service.run_one();
+        unsigned ordered_cnt;
+        for (ordered_cnt = 0; ordered_cnt < window.size() && window[ordered_cnt].valid; ++ordered_cnt)
+        {
+            message += window[ordered_cnt].data;
+            ++read_base;
+            ++peer_sequence_number;
+        }
+        for (unsigned i = 0; i < ordered_cnt; ++i)
+            window.pop_front();
+        if (ordered_cnt > 0)
+            window.resize(window_size);
+    }
+    std::copy(message.begin(), message.end(), buffer);
+    return message.length();
+}
+
+void ReliableUdp::read()
 {
     socket.async_receive(asio::buffer(read_buffer, max_udp_packet_length),
                          [this](const asio::error_code& error, std::size_t bytes_transferred)
@@ -131,15 +184,34 @@ void ReliableUdp::srRead()
         packet_header.unmarshall(message, true);
         packet_header.resetData();
         if (packet_with_data.dataPacket())
-            receive_data_queue.push(packet_with_data);
+        {
+            //TODO
+            if (packet_with_data.seq_num < peer_sequence_number)    //Sender didn't receive our ack
+            {
+                std::thread thread([this](unsigned seq_num, unsigned ack_num)
+                {
+                    UdpPacket ack_packet;
+                    ack_packet.setAck();
+                    ack_packet.ack_number = ack_num;
+                    ack_packet.seq_num = seq_num;
+                    write(ack_packet);
+                    io_service.run_one();
+                }, sequence_number, packet_with_data.seq_num);
+                thread.detach();
+            }
+            else
+                receive_data_queue.push(packet_with_data);
+        }
         if (packet_header.ackPacket())
             receive_ack_queue.push(packet_header);
         //receive_cv.notify_all();
     });
 }
 
-void ReliableUdp::write(const UdpPacket& packet)
+//The following method should be thread-safe
+void ReliableUdp::write(UdpPacket& packet)
 {
+    packet.marshall();
     socket.async_send(asio::buffer(packet.marshalled_message),
                       [](const asio::error_code& error_code, std::size_t bytes_transferred)
     {
@@ -147,10 +219,6 @@ void ReliableUdp::write(const UdpPacket& packet)
             std::cerr << "Error in sending " << bytes_transferred << std::endl;
     });
 
-}
-
-void ReliableUdp::sendHandShakeResponse(UdpPacket& packet)
-{
 }
 
 bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet)
@@ -228,22 +296,18 @@ void ReliableUdp::write(const std::string& message)
         auto len = (i < (packet_num - 1) ? max_udp_payload_length : message.length() - processed_len);
         msg_buf = message.substr(processed_len, len);
         processed_len += len;
-        send_queue.push_back(UdpPacket());;
-        UdpPacket& packet = send_queue.back();
+
+        UdpPacket packet;
         packet.seq_num = sequence_number++;
         packet.setPeerIpV4(peer_endpoint.address().to_string());
         packet.packet_type = PacketTypeMask::Data;
         packet.peer_port = peer_endpoint.port();
         packet.data = msg_buf;
-        packet.marshall();        
+        send_queue.push_back(packet);
     }
     srWrite();
 }
 
-std::size_t ReliableUdp::read(asio::streambuf& buffer, int length)
-{
-
-}
 
 void ReliableUdp::init()
 {

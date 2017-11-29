@@ -22,20 +22,21 @@ class ReliableUdp
     ReliableUdp(asio::io_service& io_service);
     ~ReliableUdp();
     void write(const std::string& message);
-    std::size_t read(asio::streambuf& buffer, int length);
+    std::size_t read(char* buffer, unsigned int length);
 private:
     void init();
     void srWrite(bool hand_shake = false);
-    void srRead();
-    void write(const UdpPacket& packet);
+    std::size_t srRead(char* buffer, unsigned int packet_num);
+    void read();
+    //The following method should be thread-safe
+    void write(UdpPacket& packet);
     bool completeThreewayHandshake(UdpPacket& packet);
-    void sendHandShakeResponse(UdpPacket& packet);
     friend class UdpPassiveSocket;
 private:
     asio::ip::udp::endpoint peer_endpoint;
     SeqNum sequence_number, initial_sequence_number;
     SeqNum peer_sequence_number;
-    std::queue<UdpPacket> receive_data_queue, receive_ack_queue;
+    std::queue<UdpPacket> receive_ack_queue, receive_data_queue;
     std::deque<UdpPacket> send_queue;
     std::mutex send_queue_mutex, receive_queue_mutex;
     std::string received_message;

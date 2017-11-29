@@ -26,6 +26,7 @@ enum  PacketTypeMask
 class UdpPacket
 {
 public:
+    UdpPacket() {valid = false;}
     void marshall();
     void unmarshall(const std::string& network_message, bool ignore_data = false);
     void setPeerIpV4(const std::string& ipv4_address);
@@ -49,4 +50,5 @@ public:
 public:
     //The following fileds are not part of marshalling and unmarshalling
     std::string marshalled_message;
+    bool valid;
 };
