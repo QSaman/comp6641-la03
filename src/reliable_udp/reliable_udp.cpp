@@ -260,7 +260,8 @@ bool ReliableUdp::serverHandshakeResponse(UdpPacket& packet)
         return false;
     }
     std::cout << "Received SYNACK packet. I'm trying to send an ack." << std::endl;
-    read_seq_num = packet.seq_num;
+    if (connection_status != ConnectionStatus::Connected)
+        read_seq_num = packet.seq_num + 1;
     packet.resetSyn();
     UdpPacket ack_packet;
     std::ostringstream oss;
