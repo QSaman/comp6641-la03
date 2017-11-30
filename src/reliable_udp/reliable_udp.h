@@ -11,7 +11,7 @@
 
 #include "udp_packet.h"
 
-enum { max_udp_packet_length = 1024, max_udp_payload_length = 1009, timeout_limit = 10000 };
+enum { max_udp_packet_length = 1024, max_udp_payload_length = 1009, timeout_limit = 500 };
 
 extern unsigned int window_size;
 
@@ -50,6 +50,29 @@ private:
         Server,
         Client
     };
+
+    enum class IOMode
+    {
+        None,
+        Read,
+        Write
+    };
+
+    struct IOModeWrapper
+    {
+    public:
+        IOModeWrapper(ReliableUdp* reliable_udp, IOMode io_mode)
+        {
+            this->reliable_udp = reliable_udp;
+            this->reliable_udp->io_mode = io_mode;
+        }
+        ~IOModeWrapper()
+        {
+            this->reliable_udp->io_mode = IOMode::None;
+        }
+    private:
+        ReliableUdp* reliable_udp;
+    };
 private:
     bool serverHandshakeResponse(UdpPacket& packet);
     void init();
@@ -63,6 +86,7 @@ private:
 private:
     HandshakeStatus handshake_status;
     ConnectionStatus connection_status;
+    IOMode io_mode;
     asio::ip::udp::endpoint peer_endpoint, router_endpoint;
     SeqNum write_seq_num, init_write_seq_num;
     SeqNum read_seq_num;
@@ -72,9 +96,11 @@ private:
     std::string received_message;
     std::condition_variable send_cv, receive_cv;
     asio::ip::udp::socket socket;
+    asio::io_service& io_service;
     //See examples/cpp11/futures/daytime_client.cpp:
-    //asio::io_service::work work;
-    asio::io_service& io_service;  
+    //If there is one ready task and we call io_service::run_one, after that io_service::stopped is true.
+    //So we need to use io_service::work
+    asio::io_service::work work;
     asio::ip::udp::resolver resolver;
     bool accept_request;
     //std::thread write_thread, read_thread;

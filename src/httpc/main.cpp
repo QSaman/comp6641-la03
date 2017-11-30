@@ -9,6 +9,8 @@
 #include <memory>
 #include <iterator>
 
+#include <asio.hpp>
+
 #include "../libhttpc/http_client.h"
 
 #include "../reliable_udp/reliable_udp.h"
@@ -361,19 +363,22 @@ int main(int argc, char* argv[])
 
     //test_get();
     //test_post();
-
-
-//    using asio::ip::udp;
 //    asio::io_service io_service;
-//    udp::socket socket(io_service, udp::endpoint(udp::v4(), 0));
-//    udp::resolver resolver(io_service);
-//    std::ostringstream oss;
-//    oss << router_port;
-//    udp::endpoint router_endpoint = *resolver.resolve({udp::v4(), router_address, oss.str()});
-//    //udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
 
-//    ReliableUdp reliable_udp(io_service);
-//    std::cout << "Before connect " << std::endl;
-//    reliable_udp.connect("127.0.01", "8080", router_endpoint);
-//    std::cout << "After connect " << std::endl;
+//    asio::io_service::work work(io_service);
+
+//    using asio::ip::tcp;
+
+//    tcp::socket s(io_service);
+//    tcp::resolver resolver(io_service);
+//    asio::connect(s, resolver.resolve({"httpbin.org", "80"}));
+
+//    std::string msg = "GET / HTTP 1.0\r\n\r\n";
+//    asio::async_write(s, asio::buffer(msg), [](const asio::error_code& error_code, std::size_t bytes_transferred)
+//    {
+//       std::cout << "I am write handler!"  << std::endl;
+//    });
+//    std::cout << "io_service.stopped(): " << io_service.stopped() << std::endl;
+//    io_service.run_one();
+//    std::cout << "io_service.stopped(): " << io_service.stopped() << std::endl;
 }
