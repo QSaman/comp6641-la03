@@ -356,24 +356,24 @@ void execute_user_request()
 
 int main(int argc, char* argv[])
 {
-//    process_input_args(argc, argv);
-//    execute_user_request();
+    process_input_args(argc, argv);
+    execute_user_request();
 
     //test_get();
     //test_post();
 
 
-    using asio::ip::udp;
-    asio::io_service io_service;
-    udp::socket socket(io_service, udp::endpoint(udp::v4(), 0));
-    udp::resolver resolver(io_service);
-    std::ostringstream oss;
-    oss << router_port;
-    udp::endpoint router_endpoint = *resolver.resolve({udp::v4(), router_address, oss.str()});
-    //udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
+//    using asio::ip::udp;
+//    asio::io_service io_service;
+//    udp::socket socket(io_service, udp::endpoint(udp::v4(), 0));
+//    udp::resolver resolver(io_service);
+//    std::ostringstream oss;
+//    oss << router_port;
+//    udp::endpoint router_endpoint = *resolver.resolve({udp::v4(), router_address, oss.str()});
+//    //udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
 
-    ReliableUdp reliable_udp(io_service);
-    std::cout << "Before connect " << std::endl;
-    reliable_udp.connect("127.0.01", "8080", router_endpoint);
-    std::cout << "After connect " << std::endl;
+//    ReliableUdp reliable_udp(io_service);
+//    std::cout << "Before connect " << std::endl;
+//    reliable_udp.connect("127.0.01", "8080", router_endpoint);
+//    std::cout << "After connect " << std::endl;
 }

@@ -5,6 +5,8 @@
 #include <map>
 #include <asio.hpp>
 
+#include "../reliable_udp/reliable_udp.h"
+
 namespace LUrlParser{ class clParseURL; }
 using HttpHeader = std::map<std::string, std::string>;
 
@@ -45,6 +47,7 @@ public:
     static HttpMessage parseHttpMessage(const std::string& message, bool read_body = true);
     static bool isTextBody(const std::string& mime);
     static HttpMessage readHttpMessage(asio::ip::tcp::socket& socket, asio::streambuf& buffer);
+    static HttpMessage readUdpHttpMessage(ReliableUdp& reliable_udp, std::string& buffer);
 private:
     HttpMessage requestAndReply(const std::string& host, const std::string& port, const std::string& message);
     HttpMessage tcpRequestAndReply(const std::string& host, const std::string& port, const std::string& message);

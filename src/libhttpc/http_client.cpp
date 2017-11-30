@@ -107,6 +107,57 @@ HttpMessage HttpClient::readHttpMessage(asio::ip::tcp::socket& socket, asio::str
     return http_message;
 }
 
+HttpMessage HttpClient::readUdpHttpMessage(ReliableUdp& reliable_udp, std::string& buffer)
+{
+    std::cout << "Before reading header" << std::endl;
+    auto n = reliable_udp.read_untill(buffer, "\r\n\r\n");
+    std::cout << "After reading header" << std::endl;
+
+    //auto n = asio::read_until(socket, buffer, "\r\n\r\n");
+    //auto iter = asio::buffers_begin(buffer.data());
+    auto http_header = buffer.substr(0, n);
+    //auto http_header = std::string(iter, iter + static_cast<long>(n));
+    HttpMessage http_message = parseHttpMessage(http_header, false);
+    std::string length_str = http_message.http_header["Content-Length"];
+    unsigned int length = 0;
+    if (!length_str.empty())
+    {
+        std::istringstream iss(length_str);
+        iss >> length;
+    }
+    //We need to use the same buffer after consuming the header data:
+    //It is important to remember that there may be additional data after the delimiter.
+    //For more information: http://think-async.com/Asio/asio-1.11.0/doc/asio/overview/core/line_based.html
+    //buffer.consume(n);
+    buffer = buffer.substr(n);
+    auto partial_len = std::min(static_cast<unsigned int>(buffer.size()), length);
+    std::string body;
+    if (partial_len > 0)
+    {
+//        iter = asio::buffers_begin(buffer.data());
+//        body = std::string(iter, iter + partial_len);
+//        buffer.consume(partial_len);
+        body = buffer.substr(0, partial_len);
+        buffer = buffer.substr(partial_len);
+    }
+    auto num_bytes = length - body.length();
+    std::cout << "Revan: num_bytes: " << num_bytes << std::endl;
+    if (num_bytes > 0)
+    {
+//        n = asio::read(socket, buffer, asio::transfer_exactly(num_bytes));
+//        iter = asio::buffers_begin(buffer.data());
+//        body += std::string(iter, iter + static_cast<long>(num_bytes));
+//        buffer.consume(num_bytes);
+        std::cout << "Revan: Before reading body" << std::endl;
+        n = reliable_udp.read(buffer, num_bytes);
+        std::cout << "Revan: Afore reading body" << std::endl;
+        body += buffer.substr(0, num_bytes);
+        buffer = buffer.substr(num_bytes);
+    }
+    http_message.body = body;
+    return http_message;
+}
+
 HttpMessage HttpClient::requestAndReply(const std::string& host, const std::string& port, const std::string& message)
 {
     if (client_transport_protocol == ClientTransportProtocol::TCP)
@@ -131,7 +182,7 @@ HttpMessage HttpClient::udpRequestAndReply(const std::string& host, const std::s
 {
     using asio::ip::udp;
     asio::io_service io_service;
-    udp::socket socket(io_service, udp::endpoint(udp::v4(), 0));
+    //udp::socket socket(io_service, udp::endpoint(udp::v4(), 0));
     udp::resolver resolver(io_service);
     std::ostringstream oss;
     oss << router_port;
@@ -139,8 +190,15 @@ HttpMessage HttpClient::udpRequestAndReply(const std::string& host, const std::s
     //udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
 
     ReliableUdp reliable_udp(io_service);
+    std::cout << "Revan: Before connect" << std::endl;
     reliable_udp.connect(host, port, router_endpoint);
+    std::cout << "Revan: After connect" << std::endl;
+
+    std::cout << "Revan: Before Write" << std::endl;
     reliable_udp.write(message);
+    std::cout << "Revan: After Write" << std::endl;
+    std::string reply;
+    return readUdpHttpMessage(reliable_udp, reply);
 //    UdpPacket packet;
 //    packet.setPeerIpV4(server_endpoint.address().to_string());
 //    packet.peer_port = server_endpoint.port();

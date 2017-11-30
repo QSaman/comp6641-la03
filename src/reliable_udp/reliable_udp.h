@@ -21,11 +21,22 @@ class ReliableUdp
 {
 public:
     explicit ReliableUdp(asio::io_service& io_service);
+    //explicit ReliableUdp(ReliableUdp&& r);
+    //explicit ReliableUdp(const ReliableUdp&) = default;
+    //ReliableUdp& operator=(ReliableUdp&&) = default;
     ~ReliableUdp();
     void write(const std::string& message);
     std::size_t read(std::string& buffer, unsigned int length);
     std::size_t read_untill(std::string& buffer, std::string pattern);
     void connect(const std::string& host, const std::string& port, const asio::ip::udp::endpoint& router_endpoint);
+    std::string remoteAddress()
+    {
+        return peer_endpoint.address().to_string();
+    }
+    PortNo remotePort()
+    {
+        return peer_endpoint.port();
+    }
 private:
     enum class ConnectionStatus
     {

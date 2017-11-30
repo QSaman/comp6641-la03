@@ -61,17 +61,26 @@ void ReliableUdp::srWrite(HandshakeStatus handshake_status)
             timer.expires_from_now(std::chrono::milliseconds(timeout_limit));
             write(packet);
             timer.async_wait([&timeout](const asio::error_code& error)
-            { if (error != asio::error::operation_aborted) timeout = true; });
+            {
+                if (error != asio::error::operation_aborted)
+                {
+                    std::cout << "timer timeout!" << std::endl;
+                    timeout = true;
+                }
+            });
             read();
-            io_opt_cnt += 2;   // wait for 1 write and 1 (read or timeout)
-        }
-
+            io_opt_cnt += 3;   // wait for 1 write and 1 read and 1 timer
+        }        
         for (unsigned i = 0; i < io_opt_cnt; ++i)
         {
-            /*auto res = */io_service.run_one();
-            //std::cout << "io_service.run_one: " << res << std::endl;
+            std::cout << "Revan: Check" << std::endl;
+//            if (io_service.stopped())
+//                io_service.restart();
+            io_service.run_one();
+            std::cout << "Revan: " << print(io_service.stopped()) << std::endl;
         }
         io_opt_cnt = 0;        
+
         while (!receive_ack_queue.empty())  //Handle received ack packets
         {
             std::cout << "sr write: dequeue a packet from queue" << std::endl;
@@ -117,10 +126,17 @@ void ReliableUdp::srWrite(HandshakeStatus handshake_status)
             timer.expires_from_now(std::chrono::milliseconds(timeout_limit));
             write(send_queue[i]);
             timer.async_wait([&timeout](const asio::error_code& error)
-            { if (error != asio::error::operation_aborted) timeout = true; });
+            {
+                if (error != asio::error::operation_aborted)
+                {
+                    std::cout << "timer timeout!" << std::endl;
+                    timeout = true;
+                }
+            });
             read();
-            io_opt_cnt += 2;
+            io_opt_cnt += 3;
         }
+
         for (; send_base <= next && ack_list[send_base]; ++send_base);
         //std::cout << "Revan: " << print(send_base) << std::endl;
         //std::cout << "Revan: " << print(next) << std::endl;
@@ -130,6 +146,7 @@ void ReliableUdp::srWrite(HandshakeStatus handshake_status)
 
 std::size_t ReliableUdp::read(std::string& buffer, unsigned int length)
 {
+    std::cout << "ReliableUdp::read" << std::endl;
     buffer.clear();
     const unsigned packet_num = length / max_udp_payload_length +
             (length % max_udp_payload_length ? 1 : 0);
@@ -139,6 +156,7 @@ std::size_t ReliableUdp::read(std::string& buffer, unsigned int length)
 
 std::size_t ReliableUdp::read_untill(std::string& buffer, std::string pattern)
 {
+    std::cout << "ReliableUdp::read_untill" << std::endl;
     buffer.clear();
     std::size_t ret;
     while (true)
@@ -150,7 +168,7 @@ std::size_t ReliableUdp::read_untill(std::string& buffer, std::string pattern)
         if (ret != message.npos)
             break;
     }
-    return ret;
+    return (ret + pattern.length());
 }
 
 std::size_t ReliableUdp::srRead(std::string& buffer, unsigned int packet_num)
@@ -164,29 +182,42 @@ std::size_t ReliableUdp::srRead(std::string& buffer, unsigned int packet_num)
     {
         while (receive_data_queue.empty())
         {
+            std::cout << "sr read: recieve queue is empty. Waiting for packets..." << std::endl;
             read();
             io_service.run_one();
         }
         auto packet = receive_data_queue.front();
         receive_data_queue.pop();
-        unsigned index = packet.seq_num - read_seq_num;
-        if (index >= window_size || (packet.seq_num - read_seq_num_orig) > packet_num)
+        if (packet.seq_num < read_seq_num)
+        {
+            std::cout << "packet sequence number is old" << std::endl;
             continue;
+        }
+        unsigned index = packet.seq_num - read_seq_num;
+        std::cout << "sr read: packet index: " << index << std::endl;
+        if (index >= window_size || (packet.seq_num - read_seq_num_orig) > packet_num)
+        {
+            std::cout << "sr read: packet is not in the read window frame" << std::endl;
+            continue;
+        }
         window[index] = std::move(packet);
+        window[index].valid = true;
         UdpPacket ack_packet;
         ack_packet.setAck();
         ack_packet.ack_number = packet.seq_num;
         ack_packet.seq_num = write_seq_num;
         ack_packet.setPeerIpV4(peer_endpoint.address().to_string());
         ack_packet.peer_port = peer_endpoint.port();
+        std::cout << "sr read sending ack to " << ack_packet.peerIpV4() << ':' << ack_packet.peer_port << std::endl;
         write(ack_packet);
-        io_service.run_one();
+        std::cout << "Revan: " << print(io_service.run_one()) << std::endl;
         unsigned ordered_cnt;
         for (ordered_cnt = 0; ordered_cnt < window.size() && window[ordered_cnt].valid; ++ordered_cnt)
         {
             buffer += window[ordered_cnt].data;
             ++read_base;
             ++read_seq_num;
+            std::cout << "sr read: retreiving packet: " << print(read_seq_num) << std::endl;
         }
         for (unsigned i = 0; i < ordered_cnt; ++i)
             window.pop_front();
@@ -222,9 +253,9 @@ void ReliableUdp::read()
         UdpPacket packet_header;
         packet_header.unmarshall(message, true);
         packet_header.resetData();
-       // std::cout << "Revan: " << print(packet_with_data.packet_type) << std::endl;
-        int saman = packet_with_data.packet_type;
-        //std::cout << "Revan: " << print(saman) << std::endl;
+
+        int tmp = packet_header.packet_type;
+        std::cout << "read packet type " << tmp << " from " << packet_header.peerIpV4() << ':' << packet_header.peer_port << std::endl;
         if (packet_with_data.dataPacket())
         {
             if (packet_with_data.seq_num < read_seq_num)    //Sender didn't receive our ack
@@ -247,6 +278,7 @@ void ReliableUdp::read()
             {
                 std::cout << "push a data packet into queue" << std::endl;
                 receive_data_queue.push(packet_with_data);
+                std::cout << "Revan: " << print(receive_data_queue.size()) << std::endl;
             }
         }
         //std::cout << "Revan: " << print(packet_with_data.synAckPacket()) << std::endl;
@@ -288,6 +320,8 @@ void ReliableUdp::read()
 void ReliableUdp::write(UdpPacket& packet)
 {
     packet.marshall();
+    int tmp = packet.packet_type;
+    std::cout << "Writing packet type " << tmp << " to " << packet.peerIpV4() << ":" << packet.peer_port << std::endl;
     socket.async_send(asio::buffer(packet.marshalled_message),
                       [](const asio::error_code& error_code, std::size_t bytes_transferred)
     {
@@ -378,6 +412,11 @@ ReliableUdp::ReliableUdp(asio::io_service& io_service) :
     init();
 }
 
+//ReliableUdp::ReliableUdp(ReliableUdp&& r) : socket{std::move(r.socket)}, io_service{io_service}, resolver(io_service)
+//{
+
+//}
+
 ReliableUdp::~ReliableUdp()
 {
     io_service.stop();
@@ -387,8 +426,11 @@ ReliableUdp::~ReliableUdp()
 
 void ReliableUdp::write(const std::string& message)
 {
+    std::cout << "ReliableUdp::write" << std::endl;
     const unsigned packet_num = static_cast<unsigned>(message.length()) / max_udp_payload_length +
             ((message.length() % max_udp_payload_length) == 0 ? 0 : 1);
+
+    std::cout << "Revan: " << print(packet_num) << std::endl;
 //    std::vector<UdpPacket> packet_list;
 //    packet_list.reserve(packet_num);
     std::string msg_buf;
@@ -407,7 +449,9 @@ void ReliableUdp::write(const std::string& message)
         packet.data = msg_buf;
         send_queue.push_back(packet);
     }
+    std::cout << "Revan: Before srWrite()" << std::endl;
     srWrite();
+    std::cout << "Revan: After srWrite()" << std::endl;
 }
 
 
