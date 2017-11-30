@@ -65,9 +65,7 @@ void udpReadAndWrite(ReliableUdp& reliable_udp)
     if (verbose)
         std::cout << "Accept connection from " << remote_tcp_info << std::endl;
 
-    //asio::streambuf buffer;
     std::string buffer;
-    //HttpMessage http_message = HttpClient::readHttpMessage(active_socket, buffer);
     HttpMessage http_message = HttpClient::readUdpHttpMessage(reliable_udp, buffer);
     if (verbose)
         std::cout << "Received header (" << remote_tcp_info << "): " << std::endl
@@ -89,7 +87,9 @@ void udpReadAndWrite(ReliableUdp& reliable_udp)
                       << "): " << std::endl << tmp.body << std::endl;
         }
     }
+    std::cout << std::endl << "Writing http message to client" << std::endl << std::endl;
     reliable_udp.write(reply_msg);
+    std::cout << std::endl << "Successfully writing http message to client" << std::endl << std::endl;
     if (buffer.size())
     {
         std::cerr << remote_tcp_info << " sent " << buffer.size() << " extra bytes!"
@@ -164,9 +164,7 @@ void runUdpHttpServer(unsigned short port)
         while (true)
         {
             ReliableUdp reliable_udp(io_service);
-            std::cout << "Before accepting..." << std::endl;
             passive_socket.accept(reliable_udp);
-            std::cout << "After accepting..." << std::endl;
             //std::thread(handleUdpClientHttpRequest, std::move(reliable_udp)).detach();
             handleUdpClientHttpRequest(reliable_udp);
         }

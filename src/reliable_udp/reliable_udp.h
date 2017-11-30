@@ -77,9 +77,9 @@ private:
     bool serverHandshakeResponse(UdpPacket& packet);
     void init();
     void srWrite(HandshakeStatus handshake_status = HandshakeStatus::Unknown);
+    void sendAckPacket(SeqNum seq_num);
     std::size_t srRead(std::string& buffer, unsigned int packet_num);
     void read();
-    //The following method should be thread-safe
     void write(UdpPacket& packet);
     bool completeThreewayHandshake(UdpPacket& packet, const asio::ip::udp::endpoint& router_endpoint);
     friend class UdpPassiveSocket;
@@ -102,8 +102,5 @@ private:
     //So we need to use io_service::work
     asio::io_service::work work;
     asio::ip::udp::resolver resolver;
-    bool accept_request;
-    //std::thread write_thread, read_thread;
-    //std::thread background_thread;
     char read_buffer[max_udp_packet_length];
 };

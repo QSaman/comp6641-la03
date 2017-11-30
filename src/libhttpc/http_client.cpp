@@ -109,9 +109,9 @@ HttpMessage HttpClient::readHttpMessage(asio::ip::tcp::socket& socket, asio::str
 
 HttpMessage HttpClient::readUdpHttpMessage(ReliableUdp& reliable_udp, std::string& buffer)
 {
-    std::cout << "Before reading header" << std::endl;
+    std::cout << std::endl << "Before reading http header" << std::endl << std::endl;
     auto n = reliable_udp.read_untill(buffer, "\r\n\r\n");
-    std::cout << "After reading header" << std::endl;
+    std::cout << std::endl << "After reading http header" << std::endl << std::endl;
 
     //auto n = asio::read_until(socket, buffer, "\r\n\r\n");
     //auto iter = asio::buffers_begin(buffer.data());
@@ -148,9 +148,9 @@ HttpMessage HttpClient::readUdpHttpMessage(ReliableUdp& reliable_udp, std::strin
 //        iter = asio::buffers_begin(buffer.data());
 //        body += std::string(iter, iter + static_cast<long>(num_bytes));
 //        buffer.consume(num_bytes);
-        std::cout << "Revan: Before reading body" << std::endl;
+        std::cout << std::endl << "I need to read " << num_bytes << " more bytes as http body" << std::endl << std::endl;
         n = reliable_udp.read(buffer, num_bytes);
-        std::cout << "Revan: Afore reading body" << std::endl;
+        std::cout << std::endl << "I successfully read " << num_bytes << " bytes as http body" << std::endl << std::endl;
         body += buffer.substr(0, num_bytes);
         buffer = buffer.substr(num_bytes);
     }
@@ -190,37 +190,16 @@ HttpMessage HttpClient::udpRequestAndReply(const std::string& host, const std::s
     //udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
 
     ReliableUdp reliable_udp(io_service);
-    std::cout << "Revan: Before connect" << std::endl;
     reliable_udp.connect(host, port, router_endpoint);
-    std::cout << "Revan: After connect" << std::endl;
 
-    std::cout << "Revan: Before Write" << std::endl;
+    std::cout << std::endl <<  "Writing http request to server" << std::endl << std::endl;
     reliable_udp.write(message);
-    std::cout << "Revan: After Write" << std::endl;
+    std::cout << std::endl <<  "writing into http request to server done successfully" << std::endl << std::endl;
     std::string reply;
-    return readUdpHttpMessage(reliable_udp, reply);
-//    UdpPacket packet;
-//    packet.setPeerIpV4(server_endpoint.address().to_string());
-//    packet.peer_port = server_endpoint.port();
-//    packet.packet_type = PacketTypeMask::Data;
-//    packet.seq_num = 1;
-//    packet.data = "GET /saman.txt HTTP/1.0\r\nHost:localhost:8080\r\n\r\n";
-//    std::string udp_msg = packet.marshall();
-//    socket.send_to(asio::buffer(udp_msg, udp_msg.length()), router_endpoint);
-
-//    char reply_buffer[1024];
-//    udp::endpoint sender_endpoint;
-//    size_t reply_length = socket.receive_from(
-//        asio::buffer(reply_buffer, 1024), sender_endpoint);
-//    std::string reply = std::string(reply_buffer, reply_length);
-//    packet.unmarshall(reply);
-//    using namespace std;
-//    cout << "Message Header: " << endl;
-//    cout << "peer ip: " << packet.peerIpV4() << endl;
-//    cout << "peer port: " << packet.peer_port << endl;
-//    cout << "sequence number: " << packet.seq_num << endl;
-//    cout << "payload:" << endl;
-//    cout << packet.data;
+    std::cout << std::endl <<  "Reading http reply from server" << std::endl << std::endl;
+    auto ret = readUdpHttpMessage(reliable_udp, reply);
+    std::cout << std::endl <<  "Reading http reply from server done successfully" << std::endl << std::endl;
+    return ret;
 }
 
 HttpMessage HttpClient::parseHttpMessage(const std::string& message, bool read_body)
