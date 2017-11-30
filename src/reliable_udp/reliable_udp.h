@@ -11,7 +11,7 @@
 
 #include "udp_packet.h"
 
-enum { max_udp_packet_length = 1024, max_udp_payload_length = 1009, timeout_limit = 500 };
+enum { max_udp_packet_length = 1024, max_udp_payload_length = 1009, timeout_limit = 10000 };
 
 extern unsigned int window_size;
 
@@ -51,6 +51,7 @@ private:
         Client
     };
 private:
+    bool serverHandshakeResponse(UdpPacket& packet);
     void init();
     void srWrite(HandshakeStatus handshake_status = HandshakeStatus::Unknown);
     std::size_t srRead(std::string& buffer, unsigned int packet_num);
