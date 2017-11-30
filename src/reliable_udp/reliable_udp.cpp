@@ -327,7 +327,8 @@ void ReliableUdp::read()
 
 void ReliableUdp::write(UdpPacket& packet)
 {
-    packet.marshall();
+    if (packet.marshalled_message.empty())
+        packet.marshall();
     int tmp = packet.packet_type;
     std::cout << "Writing packet type " << tmp << " to " << packet.peerIpV4() << ":" << packet.peer_port << std::endl;
     socket.async_send(asio::buffer(packet.marshalled_message),

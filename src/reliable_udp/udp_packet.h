@@ -52,6 +52,7 @@ public:
     //The following fileds are not part of marshalling and unmarshalling
     std::string marshalled_message;
     bool valid;
+private:
 };
 
 std::ostream& operator<<(std::ostream& out, const UdpPacket& packet);
