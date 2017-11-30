@@ -274,8 +274,7 @@ void ReliableUdp::read()
 
         std::cout << "read handler: received " << message.length() << " bytes" " from " << packet_header.peerIpV4() << ':' << packet_header.peer_port << std::endl;
         int tmp = packet_header.packet_type;
-        std::cout << "read handler: recieved packet type " << tmp;
-        std::cout << "read handler: data: " << packet_with_data.data << std::endl;
+        std::cout << "read handler: recieved packet type " << tmp << std::endl;
 
         if (packet_with_data.dataPacket())
         {
@@ -298,7 +297,8 @@ void ReliableUdp::read()
         {
             if (handshake_status == HandshakeStatus::Client)
                 std::cout << "Server didn't receive the third part of handshaking. I'm sending it again" << std::endl;
-            serverHandshakeResponse(packet_header);
+            if (serverHandshakeResponse(packet_header))
+                io_service.run_one();
             read();
             io_service.run_one();
             return;
