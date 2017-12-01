@@ -97,11 +97,11 @@ void udpReadAndWrite(ReliableUdp& reliable_udp)
     }
 }
 
-void handleUdpClientHttpRequest(ReliableUdp& active_socket) noexcept
+void handleUdpClientHttpRequest(std::unique_ptr<ReliableUdp> active_socket) noexcept
 {
     try
     {
-        udpReadAndWrite(active_socket);
+        udpReadAndWrite(*active_socket.get());
     }
     catch(const std::system_error& ex)
     {
@@ -163,10 +163,9 @@ void runUdpHttpServer(unsigned short port)
     {
         while (true)
         {
-            ReliableUdp reliable_udp(io_service);
-            passive_socket.accept(reliable_udp);
-            //std::thread(handleUdpClientHttpRequest, std::move(reliable_udp)).detach();
-            handleUdpClientHttpRequest(reliable_udp);
+            std::unique_ptr<ReliableUdp> ptr(new ReliableUdp(io_service));
+            passive_socket.accept(*ptr.get());
+            std::thread(handleUdpClientHttpRequest, std::move(ptr)).detach();
         }
     }
     catch(const std::system_error& ex)
