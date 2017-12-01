@@ -193,7 +193,7 @@ void ReliableUdp::sendAckPacket(SeqNum seq_num)
     io_service.run_one();
 }
 
-std::size_t ReliableUdp::srRead(std::string& buffer, unsigned int packet_num)
+std::size_t ReliableUdp::srRead(std::string& buffer, const unsigned int packet_num)
 {
     if (packet_num == 0)
         return 0;
@@ -259,9 +259,12 @@ std::size_t ReliableUdp::srRead(std::string& buffer, unsigned int packet_num)
                 std::cout << "sr read: retreiving packet: " << print(read_seq_num) << std::endl;
         }
         for (unsigned i = 0; i < ordered_cnt; ++i)
-            window.pop_front();
-        if (ordered_cnt > 0)
-            window.resize(window_size);
+        {
+            window.push_back(UdpPacket());
+            window.pop_front();            
+        }
+//        if (ordered_cnt > 0)
+//            window.resize(window_size);
     }
     std::cout << std::endl << "sr read finished" << std::endl << std::endl;
     return buffer.length();
@@ -419,6 +422,8 @@ void ReliableUdp::connect(const std::string& host, const std::string& port, cons
     srWrite(HandshakeStatus::Client);
     ++write_seq_num;
     connection_status = ConnectionStatus::Connected;
+    std::cout << "connect - write sequence number: " << write_seq_num << std::endl;
+    std::cout << "connect - read sequence number: " << read_seq_num << std::endl;
     std::cout << std::endl << "Connected to " << peer_endpoint.address().to_string()
               << ":" << peer_endpoint.port() << " successfully!" << std::endl << std::endl;
 }
@@ -446,9 +451,11 @@ bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet, const udp::endpoi
     std::cout << " from " << socket.local_endpoint().address().to_string()
               << ":" << socket.local_endpoint().port() << std::endl;
     srWrite(HandshakeStatus::Server);
-    std::cout << "Connection established successfully!" << std::endl;
     connection_status = ConnectionStatus::Connected;
     ++write_seq_num;
+    std::cout << "server-side handshake - write sequence number: " << write_seq_num << std::endl;
+    std::cout << "server-side handshake - read sequence number: " << read_seq_num << std::endl << std::endl;
+    std::cout << "Connection established successfully!" << std::endl;
     return true;
 }
 

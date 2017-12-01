@@ -70,7 +70,7 @@ private:
     void init();
     void srWrite(HandshakeStatus handshake_status = HandshakeStatus::Unknown);
     void sendAckPacket(SeqNum seq_num);
-    std::size_t srRead(std::string& buffer, unsigned int packet_num);
+    std::size_t srRead(std::string& buffer, const unsigned int packet_num);
     void read();
     void write(UdpPacket& packet);
     bool completeThreewayHandshake(UdpPacket& packet, const asio::ip::udp::endpoint& router_endpoint);
