@@ -3,11 +3,8 @@
 #include <iosfwd>
 #include <asio.hpp>
 #include <queue>
-#include <deque>
 #include <memory>
-#include <condition_variable>
-#include <mutex>
-#include <thread>
+#include <deque>
 
 #include "udp_packet.h"
 
@@ -19,9 +16,6 @@ class ReliableUdp
 {
 public:
     explicit ReliableUdp(asio::io_service& io_service, unsigned int window_size = 1, bool verbose = false);
-    //explicit ReliableUdp(ReliableUdp&& r);
-    //explicit ReliableUdp(const ReliableUdp&) = default;
-    //ReliableUdp& operator=(ReliableUdp&&) = default;
     ~ReliableUdp();
     void write(const std::string& message);
     std::size_t read(std::string& buffer, unsigned int length);
@@ -90,9 +84,6 @@ private:
     SeqNum read_seq_num;
     std::queue<UdpPacket> receive_ack_queue, receive_data_queue;
     std::deque<UdpPacket> send_queue;
-    std::mutex send_queue_mutex, receive_queue_mutex;
-    std::string received_message;
-    std::condition_variable send_cv, receive_cv;
     asio::ip::udp::socket socket;
     asio::io_service& io_service;
     //See examples/cpp11/futures/daytime_client.cpp:
