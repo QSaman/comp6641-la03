@@ -142,7 +142,6 @@ HttpMessage HttpClient::readUdpHttpMessage(ReliableUdp& reliable_udp, std::strin
         buffer = buffer.substr(partial_len);
     }
     auto num_bytes = length - body.length();
-    std::cout << "Revan: num_bytes: " << num_bytes << std::endl;
     if (num_bytes > 0)
     {
 //        n = asio::read(socket, buffer, asio::transfer_exactly(num_bytes));
