@@ -18,7 +18,7 @@ void testMarshalling();
 class ReliableUdp
 {
 public:
-    explicit ReliableUdp(asio::io_service& io_service, unsigned int window_size = 1, bool verbose = false   );
+    explicit ReliableUdp(asio::io_service& io_service, unsigned int window_size = 1, bool verbose = false);
     //explicit ReliableUdp(ReliableUdp&& r);
     //explicit ReliableUdp(const ReliableUdp&) = default;
     //ReliableUdp& operator=(ReliableUdp&&) = default;

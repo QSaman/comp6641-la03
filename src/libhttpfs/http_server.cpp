@@ -155,15 +155,16 @@ void runHttpTcpServer(unsigned short port)
 
 void runUdpHttpServer(unsigned short port)
 {
-    using asio::ip::udp;
-    asio::io_service io_service;
+    using asio::ip::udp;    
 
+    asio::io_service io_service;
     UdpPassiveSocket passive_socket(io_service, port);
     try
     {
         while (true)
         {
-            std::unique_ptr<ReliableUdp> ptr(new ReliableUdp(io_service, window_size));
+            asio::io_service io_service_active;
+            std::unique_ptr<ReliableUdp> ptr(new ReliableUdp(io_service_active, window_size));
             passive_socket.accept(*ptr.get());
             std::thread(handleUdpClientHttpRequest, std::move(ptr)).detach();
         }
