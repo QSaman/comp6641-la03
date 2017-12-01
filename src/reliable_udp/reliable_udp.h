@@ -75,13 +75,14 @@ private:
     void write(UdpPacket& packet);
     bool completeThreewayHandshake(UdpPacket& packet, const asio::ip::udp::endpoint& router_endpoint);
     friend class UdpPassiveSocket;
+    SeqNum readSeqIndex(SeqNum seq_num);
 private:
     HandshakeStatus handshake_status;
     ConnectionStatus connection_status;
     IOMode io_mode;
     asio::ip::udp::endpoint peer_endpoint, router_endpoint;
     SeqNum write_seq_num, init_write_seq_num;
-    SeqNum read_seq_num;
+    SeqNum read_seq_num, init_read_seq_num;
     std::queue<UdpPacket> receive_ack_queue, receive_data_queue;
     std::deque<UdpPacket> send_queue;
     asio::ip::udp::socket socket;
