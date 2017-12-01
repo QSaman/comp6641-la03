@@ -20,6 +20,7 @@ enum class CommandType {None, Get, Post, Help};
 extern ClientTransportProtocol client_transport_protocol;
 extern std::string router_address;
 extern unsigned short router_port;
+extern unsigned int client_window_size;
 
 static cxxopts::Options options("httpc", "httpc is a curl-like application but supports HTTP only.");
 static bool verbose = false;
@@ -156,6 +157,8 @@ void process_input_args(int argc, char* argv[])
             ("h,header", "Associate headers to HTTP Request with the format 'key:value'", cxxopts::value<std::vector<std::string>>(), "key:value")
             ("t,protocol", "The underlying protocol. The default is udp",
              cxxopts::value<std::string>(), "tcp/udp")
+            ("w,window-size", "Window size. See Selective Repeat aglorithm for more information."
+                         " The default is 1.", cxxopts::value<unsigned int>(), "num")
             ("a,router-address", "Router address for UDP connection. The default is localhost",
              cxxopts::value<std::string>(), "router_address")
             ("b,router-port", "Router port for UDP connection. The default is 7070",
@@ -185,6 +188,15 @@ void process_input_args(int argc, char* argv[])
         auto tmp = options["protocol"].as<std::string>();
         if (tmp == "tcp" || tmp == "TCP")
             client_transport_protocol = ClientTransportProtocol::TCP;
+    }
+    if (options.count("window-size"))
+    {
+        if (client_transport_protocol != ClientTransportProtocol::UDP)
+        {
+            std::cerr << "Option window-size is only available for UDP" << std::endl;
+            exit(1);
+        }
+        client_window_size = options["window-size"].as<unsigned int>();
     }
     if (options.count("router-address"))
     {

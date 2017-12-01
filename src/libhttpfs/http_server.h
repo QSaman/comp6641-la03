@@ -11,6 +11,7 @@ enum class TransportProtocol
 };
 
 extern TransportProtocol transport_protocol;
+extern unsigned int window_size;
 
 void runHttpServer(unsigned short port);
 std::string constructServerMessage(const std::string partial_header, const std::string body);

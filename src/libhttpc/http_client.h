@@ -19,6 +19,7 @@ enum class ClientTransportProtocol
 extern ClientTransportProtocol client_transport_protocol;
 extern std::string router_address;
 extern unsigned short router_port;
+extern unsigned int client_window_size;
 
 enum class HttpMessageType
 {

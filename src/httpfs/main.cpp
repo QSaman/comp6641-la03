@@ -30,6 +30,7 @@ bool no_cache = false;
 int children_level = 0;
 static unsigned short port = 8080;
 TransportProtocol transport_protocol = TransportProtocol::UDP;
+unsigned int window_size = 1;
 
 [[noreturn]] void printHelp()
 {
@@ -45,6 +46,8 @@ void cli(int argc, char* argv[])
                        " Default is 8080", cxxopts::value<int>(), "num")
             ("t,protocol", "The underlying protocol. The default is udp",
              cxxopts::value<std::string>(), "tcp/udp")
+            ("w,window-size", "Window size. See Selective Repeat aglorithm for more information."
+                         " The default is 1.", cxxopts::value<unsigned int>(), "num")
             ("d,dir", " Specifies the directory that the server will use to read/write requested"
                       " files. Default is resources/https_root in the current directory when"
                       " launching the application", cxxopts::value<std::string>(), "dir_path")
@@ -71,6 +74,15 @@ void cli(int argc, char* argv[])
         auto tmp = options["protocol"].as<std::string>();
         if (tmp == "tcp" || tmp == "TCP")
             transport_protocol = TransportProtocol::TCP;
+    }
+    if (options.count("window-size"))
+    {
+        if (transport_protocol != TransportProtocol::UDP)
+        {
+            std::cerr << "Option window-size is only available for UDP" << std::endl;
+            exit(1);
+        }
+        window_size = options["window-size"].as<unsigned int>();
     }
     if (options.count("verbose"))
         verbose = true;

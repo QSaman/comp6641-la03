@@ -11,6 +11,7 @@
 ClientTransportProtocol client_transport_protocol = ClientTransportProtocol::UDP;
 std::string router_address = "localhost";
 unsigned short router_port = 7070;
+unsigned int client_window_size = 1;
 
 HttpMessage HttpClient::sendGetCommand(const std::string& url, const std::string& header, bool verbose)
 {
@@ -189,7 +190,8 @@ HttpMessage HttpClient::udpRequestAndReply(const std::string& host, const std::s
     udp::endpoint router_endpoint = *resolver.resolve({udp::v4(), router_address, oss.str()});
     //udp::endpoint server_endpoint = *resolver.resolve({udp::v4(), host, port});
 
-    ReliableUdp reliable_udp(io_service);
+    std::cout << "Using window size " << client_window_size << " for selective repeat algorithm" << std::endl;
+    ReliableUdp reliable_udp(io_service, client_window_size);
     reliable_udp.connect(host, port, router_endpoint);
 
     std::cout << std::endl <<  "Writing http request to server" << std::endl << std::endl;

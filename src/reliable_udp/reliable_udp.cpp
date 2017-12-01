@@ -11,11 +11,9 @@ using asio::ip::udp;
 
 #define print(x) #x << ": " << x
 
-unsigned int window_size = 1;
-
 void ReliableUdp::srWrite(HandshakeStatus handshake_status)
 {
-    std::cout << std::endl << "sr write started" << std::endl << std::endl;
+    std::cout << std::endl << "sr write started - window size: " << window_size << std::endl << std::endl;
     IOModeWrapper wrapper(this, IOMode::Write);
     //next: current unsent packet index
     //send_base: the least-value index of unack packet
@@ -171,7 +169,7 @@ void ReliableUdp::sendAckPacket(SeqNum seq_num)
 
 std::size_t ReliableUdp::srRead(std::string& buffer, unsigned int packet_num)
 {
-    std::cout << std::endl << "sr read started" << std::endl << std::endl;
+    std::cout << std::endl << "sr read started - window size: " << window_size << std::endl << std::endl;
     IOModeWrapper wrapper(this, IOMode::Read);
     unsigned read_base = 0;
     std::deque<UdpPacket> window;
@@ -393,11 +391,11 @@ bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet, const udp::endpoi
     return true;
 }
 
-ReliableUdp::ReliableUdp(asio::io_service& io_service) :
+ReliableUdp::ReliableUdp(asio::io_service& io_service, unsigned int window_size) :
     handshake_status{HandshakeStatus::Unknown},
     connection_status{ConnectionStatus::Disconnect}, io_mode{IOMode::None},
     socket(udp::socket(io_service, udp::endpoint(udp::v4(), 0))),io_service{io_service},
-    work{io_service}, resolver(io_service)
+    work{io_service}, resolver(io_service), window_size{window_size}
 {
     init();
 }

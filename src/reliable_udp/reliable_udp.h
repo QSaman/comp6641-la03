@@ -13,14 +13,12 @@
 
 enum { max_udp_packet_length = 1024, max_udp_payload_length = 1009, timeout_limit = 500 };
 
-extern unsigned int window_size;
-
 void testMarshalling();
 
 class ReliableUdp
 {
 public:
-    explicit ReliableUdp(asio::io_service& io_service);
+    explicit ReliableUdp(asio::io_service& io_service, unsigned int window_size = 1);
     //explicit ReliableUdp(ReliableUdp&& r);
     //explicit ReliableUdp(const ReliableUdp&) = default;
     //ReliableUdp& operator=(ReliableUdp&&) = default;
@@ -103,4 +101,5 @@ private:
     asio::io_service::work work;
     asio::ip::udp::resolver resolver;
     char read_buffer[max_udp_packet_length];
+    unsigned int window_size;
 };

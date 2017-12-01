@@ -163,7 +163,7 @@ void runUdpHttpServer(unsigned short port)
     {
         while (true)
         {
-            std::unique_ptr<ReliableUdp> ptr(new ReliableUdp(io_service));
+            std::unique_ptr<ReliableUdp> ptr(new ReliableUdp(io_service, window_size));
             passive_socket.accept(*ptr.get());
             std::thread(handleUdpClientHttpRequest, std::move(ptr)).detach();
         }
@@ -192,6 +192,9 @@ void runHttpServer(unsigned short port)
     if (transport_protocol == TransportProtocol::TCP)
         runHttpTcpServer(port);
     else
+    {
+        std::cout << "Window size for selective repeat algorithm: " << window_size << std::endl;
         runUdpHttpServer(port);
+    }
 }
 
