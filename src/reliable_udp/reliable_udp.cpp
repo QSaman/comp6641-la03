@@ -423,10 +423,10 @@ void ReliableUdp::connect(const std::string& host, const std::string& port, cons
     send_queue.push_back(packet);
     handshake_status = HandshakeStatus::Client;
     srWrite(HandshakeStatus::Client);
-    ++write_seq_num;
-    connection_status = ConnectionStatus::Connected;
     std::cout << "connect - write sequence number: " << write_seq_num << std::endl;
     std::cout << "connect - read sequence number: " << read_seq_num << std::endl;
+    ++write_seq_num;
+    connection_status = ConnectionStatus::Connected;
     std::cout << std::endl << "Connected to " << peer_endpoint.address().to_string()
               << ":" << peer_endpoint.port() << " successfully!" << std::endl << std::endl;
 }
@@ -455,9 +455,9 @@ bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet, const udp::endpoi
               << ":" << socket.local_endpoint().port() << std::endl;
     srWrite(HandshakeStatus::Server);
     connection_status = ConnectionStatus::Connected;
-    ++write_seq_num;
     std::cout << "server-side handshake - write sequence number: " << write_seq_num << std::endl;
     std::cout << "server-side handshake - read sequence number: " << read_seq_num << std::endl << std::endl;
+    ++write_seq_num;
     std::cout << "Connection established successfully!" << std::endl;
     std::cout << "My address is " << socket.local_endpoint().address().to_string() << ':' << socket.local_endpoint().port() << std::endl << std::endl;
     return true;
