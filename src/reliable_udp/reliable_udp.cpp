@@ -67,7 +67,7 @@ void ReliableUdp::srWrite(HandshakeStatus handshake_status)
                     continue;
                 timeout = false;
                 if (verbose)
-                    std::cout << "sr write packet " << i << " timer is expired!" << std::endl;
+                    std::cout << "sr write packet " << i << "with seq num " << send_queue[i].seq_num << " timeout! I resend it." << std::endl;
                 timers[i] = asio::steady_timer(socket.get_io_service());
                 auto& timer = timers[i];
                 timer.expires_from_now(std::chrono::milliseconds(timeout_limit));
@@ -188,7 +188,7 @@ void ReliableUdp::sendAckPacket(SeqNum seq_num)
     ack_packet.setPeerIpV4(peer_endpoint.address().to_string());
     ack_packet.peer_port = peer_endpoint.port();
     if (verbose)
-        std::cout << "sr read: sending ack to " << ack_packet.peerIpV4() << ':' << ack_packet.peer_port << std::endl;
+        std::cout << "sr read: sending ack (" << seq_num << ") to " << ack_packet.peerIpV4() << ':' << ack_packet.peer_port << std::endl;
     write(ack_packet);
     io_service.run_one();
 }
@@ -230,7 +230,7 @@ std::size_t ReliableUdp::srRead(std::string& buffer, const unsigned int packet_n
         }
         unsigned index = readSeqIndex(packet.seq_num) - readSeqIndex(read_seq_num);
         if (verbose)
-            std::cout << "sr read: packet index: " << index << std::endl;
+            std::cout << "sr read: packet index: " << index << " and packet seq num: " << packet.seq_num << std::endl;
         if (index >= window_size || (readSeqIndex(packet.seq_num) - readSeqIndex(read_seq_num_orig)) >= packet_num)
         {
             if (verbose)
@@ -280,7 +280,10 @@ bool ReliableUdp::serverHandshakeResponse(UdpPacket& packet)
     }
     std::cout << "Received SYNACK packet. I'm trying to send an ack." << std::endl;
     if (connection_status != ConnectionStatus::Connected)
-        init_read_seq_num = read_seq_num = packet.seq_num + 1;
+    {
+        init_read_seq_num = packet.seq_num;
+         read_seq_num = init_read_seq_num + 1;
+    }
     packet.resetSyn();
     UdpPacket ack_packet;
     std::ostringstream oss;
@@ -326,7 +329,7 @@ void ReliableUdp::read()
             std::cout << "read handler: received " << message.length() << " bytes" " from " << packet_with_data.peerIpV4() << ':' << packet_with_data.peer_port << std::endl;
         int tmp = packet_with_data.packet_type;
         if (verbose)
-            std::cout << "read handler: recieved packet type " << tmp << std::endl;
+            std::cout << "read handler: recieved packet type " << tmp << " and seq num : " << packet_with_data.seq_num << " and ack num: " << packet_with_data.ack_number << std::endl;
 
         if (packet_with_data.dataPacket())
         {
@@ -392,7 +395,7 @@ void ReliableUdp::write(UdpPacket& packet)
         packet.marshall();
     int tmp = packet.packet_type;
     if (verbose)
-        std::cout << "Writing packet type " << tmp << " to " << packet.peerIpV4() << ":" << packet.peer_port << std::endl;
+        std::cout << "Writing packet type " << tmp << " and seq num: " << packet.seq_num << " to " << packet.peerIpV4() << ":" << packet.peer_port << std::endl;
     socket.async_send(asio::buffer(packet.marshalled_message),
                       [this](const asio::error_code& error_code, std::size_t bytes_transferred)
     {
@@ -456,6 +459,7 @@ bool ReliableUdp::completeThreewayHandshake(UdpPacket& packet, const udp::endpoi
     std::cout << "server-side handshake - write sequence number: " << write_seq_num << std::endl;
     std::cout << "server-side handshake - read sequence number: " << read_seq_num << std::endl << std::endl;
     std::cout << "Connection established successfully!" << std::endl;
+    std::cout << "My address is " << socket.local_endpoint().address().to_string() << ':' << socket.local_endpoint().port() << std::endl << std::endl;
     return true;
 }
 
